@@ -70,7 +70,7 @@ class TestDetector:
         mock_result.boxes.__len__ = lambda self: 0
         mock_model.predict.return_value = [mock_result]
 
-        with patch("src.detector.YOLO", mock_yolo_cls, create=True):
+        with patch("ultralytics.YOLO", mock_yolo_cls):
             frame = np.zeros((480, 640, 3), dtype=np.uint8)
             detector.detect(frame)
 
@@ -96,7 +96,7 @@ class TestDetector:
 
         mock_yolo_cls = MagicMock(return_value=mock_model)
 
-        with patch("src.detector.YOLO", mock_yolo_cls, create=True):
+        with patch("ultralytics.YOLO", mock_yolo_cls):
             frame = np.zeros((480, 640, 3), dtype=np.uint8)
             detections = detector.detect(frame)
 
@@ -124,7 +124,7 @@ class TestDetector:
         mock_model = MagicMock()
         mock_yolo_cls = MagicMock(return_value=mock_model)
 
-        with patch("src.detector.YOLO", mock_yolo_cls, create=True):
+        with patch("ultralytics.YOLO", mock_yolo_cls):
             grayscale = np.zeros((480, 640), dtype=np.uint8)
             with pytest.raises(ValueError, match="3-channel"):
                 detector.detect(grayscale)
