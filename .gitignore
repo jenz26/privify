@@ -48,3 +48,6 @@ claude.local.md
 .coverage
 htmlcov/
 .ruff_cache/
+
+# Personal study notes (not part of the public deliverable)
+docs/exam_notes.md
