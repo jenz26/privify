@@ -71,9 +71,7 @@ class Detector:
         device: str | None = None,
     ) -> None:
         if not 0.0 < conf_threshold <= 1.0:
-            raise ValueError(
-                f"conf_threshold must be in (0.0, 1.0], got {conf_threshold}"
-            )
+            raise ValueError(f"conf_threshold must be in (0.0, 1.0], got {conf_threshold}")
 
         self._model_path = Path(model_path)
         self._conf_threshold = conf_threshold
@@ -127,9 +125,7 @@ class Detector:
             ValueError: If *frame* is not a 3-channel image array.
         """
         if frame.ndim != 3 or frame.shape[2] != 3:
-            raise ValueError(
-                f"Expected a 3-channel image (H, W, 3), got shape {frame.shape}"
-            )
+            raise ValueError(f"Expected a 3-channel image (H, W, 3), got shape {frame.shape}")
 
         model = self._ensure_model()
         results = model.predict(

@@ -10,7 +10,6 @@ import pytest
 
 from src.detector import Detection, Detector
 
-
 # ------------------------------------------------------------------
 # Detection dataclass tests
 # ------------------------------------------------------------------
