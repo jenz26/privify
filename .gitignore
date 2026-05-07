@@ -39,7 +39,7 @@ samples/output_*
 claude.local.md
 .anthropic/
 *.claude.md
-!CLAUDE.md
+CLAUDE.md
 .cursor/
 .aider*
 
