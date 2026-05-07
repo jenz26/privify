@@ -44,3 +44,25 @@ changes when the model is swapped.
 - *Use a face-specific detector (RetinaFace/MTCNN) as interim:* Rejected because
   it introduces a dependency that would be thrown away after fine-tuning.  Using
   the same ultralytics interface now avoids a throwaway integration effort.
+
+## 2026-05-07 — Gaussian blur as anonymization strategy
+
+**Context:** The anonymizer module needs a method to redact faces and license
+plates in video frames for GDPR compliance.  The three main options are
+Gaussian blur, pixelation (mosaic), and face/plate replacement with synthetic
+imagery.
+
+**Decision:** Use `cv2.GaussianBlur` with a configurable kernel size (default
+51).  The kernel size is validated to be a positive odd integer at construction
+time.
+
+**Alternatives considered:**
+- *Pixelation (mosaic):* Rejected because recent super-resolution research
+  (e.g. PULSE, GFPGAN) has shown that pixelated faces can be partially
+  reconstructed, making pixelation a weaker privacy guarantee.  Gaussian blur
+  destroys high-frequency information more thoroughly.
+- *Face/plate replacement with generative models (GAN inpainting, diffusion):*
+  Rejected because it introduces a dependency on a generative model, increases
+  computational cost significantly, and adds complexity far beyond the project
+  scope.  The visual result would be more natural, but GDPR compliance does not
+  require naturalness — only effective de-identification.
