@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+dist/
+build/
+*.egg-info/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project artifacts
+data/
+models/*.pt
+models/*.pth
+samples/output_*
+*.log
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Claude Code / AI tooling
+.claude/
+.claude-cache/
+claude.local.md
+.anthropic/
+*.claude.md
+!CLAUDE.md
+.cursor/
+.aider*
+
+# Test / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.ruff_cache/
