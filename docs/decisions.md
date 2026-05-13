@@ -66,3 +66,24 @@ time.
   computational cost significantly, and adds complexity far beyond the project
   scope.  The visual result would be more natural, but GDPR compliance does not
   require naturalness — only effective de-identification.
+
+## 2026-05-13 — Video processing as function with dependency injection
+
+**Context:** The project needs an orchestrator that ties together `Detector`
+and `Anonymizer` to process a full video end-to-end (read → detect →
+anonymize → write).  This is the first module that performs real video I/O.
+
+**Decision:** Implement a plain function `process_video` that receives
+`Detector` and `Anonymizer` as arguments (dependency injection) rather than
+instantiating them internally.  The function returns a frozen `ProcessingStats`
+dataclass.  No class wrapper is introduced at this stage.
+
+**Alternatives considered:**
+- *Class `VideoProcessor` with constructor-injected collaborators:* Deferred.
+  A class becomes worthwhile when the pipeline needs shared state across
+  calls (progress callbacks, batching, multi-threaded frame reading).
+  Currently a single function is simpler to test and compose.
+- *Shell script + ffmpeg for frame extraction and re-muxing:* Rejected
+  because it is not portable to Google Colab (ffmpeg availability and codec
+  licensing vary), harder to unit-test, and introduces a process boundary
+  that complicates error handling.
