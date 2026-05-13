@@ -105,3 +105,25 @@ cell and the "Next steps" section.
   it blocks demonstrability of the pipeline architecture.  The notebook proves
   that detector → anonymizer → video writer compose correctly; swapping the
   model weights later requires no notebook changes.
+
+## 2026-05-13 — Bundle test video in repository instead of runtime download
+
+**Context:** The demo notebook originally downloaded a test video from a
+public URL at runtime.  This approach proved unreliable from datacenter
+environments like Google Colab: Pixabay's CDN applies bot-mitigation rules
+that return HTTP 403 to requests with non-browser User-Agent strings or
+originating from cloud IP ranges.
+
+**Decision:** Commit a small test video (~8 MB, Creative Commons from
+Pixabay, urban scene with frontal pedestrians) as `samples/input.mp4`
+directly in the repository.  The notebook verifies the file exists instead
+of downloading it.  The `.gitignore` uses a negation rule
+(`!samples/input.mp4`) to track this specific file while still ignoring
+other local videos.
+
+**Alternatives considered:**
+- *GitHub-hosted sample videos (e.g. intel-iot-devkit/sample-videos):*
+  Rejected because available clips showed pedestrians from behind, making
+  them unsuitable for demonstrating facial blur visually.
+- *Hosting the video on Google Drive with gdown:* Rejected because it ties
+  notebook reproducibility to the lifecycle of a personal Google account.
