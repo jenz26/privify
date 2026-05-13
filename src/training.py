@@ -1,4 +1,4 @@
-"""Face detector fine-tuning on WIDER FACE via YOLOv8.
+"""Face detector fine-tuning via YOLOv8.
 
 This module encapsulates the training logic so that it can be invoked from
 a Colab notebook, a CLI script, or any other entry point.  The ultralytics
@@ -12,7 +12,7 @@ Typical usage::
     from src.training import TrainingConfig, train_face_detector
 
     config = TrainingConfig(
-        dataset_yaml_path=Path("data/widerface/data.yaml"),
+        dataset_yaml_path=Path("data/face-detection-dataset/data.yaml"),
         output_dir=Path("runs/face"),
     )
     result = train_face_detector(config)
