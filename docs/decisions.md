@@ -180,3 +180,30 @@ purposes.
 - *Negative:* Training set slightly smaller (1 246 vs 1 402 images in
   v0.1); difference is negligible for fine-tuning.
 - *Negative:* One-shot update of URLs and paths in the notebook.
+
+## 2026-05-13 — Use fine-tuned YOLOv8n weights instead of COCO yolov8n.pt
+
+**Context:** The pre-trained `yolov8n.pt` detects COCO class "person" with
+bounding boxes covering the entire body.  For GDPR anonymization the blur
+must be limited to faces, not full-body silhouettes.  A specialised detector
+is also a better starting point for future domain-specific fine-tuning
+(CCTV, retail, etc.) than the generic COCO model.
+
+**Decision:** Use the fine-tuned `face-detector-v0.1` weights (YOLOv8n,
+50 epochs on dataset-v0.2; mAP@50 0.937, mAP@50-95 0.682).  Weights are
+downloaded automatically from the GitHub Release on first instantiation
+and cached in `models/` (gitignored).  Integrity is verified via SHA-256
+before loading.
+
+**Consequences:**
+- *Positive:* Bounding boxes now cover only the face, significantly
+  reducing over-blurring (less false-positive area).
+- *Positive:* SHA-256 check protects against corrupted downloads or
+  modified upstream assets.
+- *Positive:* Clear versioning pattern — upgrading to `face-detector-v0.2`
+  requires updating only two constants (``WEIGHTS_URL`` and
+  ``WEIGHTS_SHA256``).
+- *Negative:* Internet connection required on first run (mitigated by
+  local caching; download is ~6 MB, one-time per environment).
+- *Negative:* Users behind strict firewalls must pre-populate `models/`
+  manually.

@@ -7,15 +7,18 @@ confines the third-party coupling to a single file, making it straightforward
 to swap the backend (e.g. ONNX, a different YOLO version) without touching
 downstream code.
 
-**Provisional behaviour:** until the model is fine-tuned on WIDER FACE + CCPD,
-the detector uses ``yolov8n.pt`` pre-trained on COCO.  COCO class 0 ("person")
-is used as a temporary proxy for "face".  License-plate detection is not
-available at this stage.  See ``docs/decisions.md`` for the rationale.
+By default the detector uses ``face-detector-v0.1.pt``, a YOLOv8n model
+fine-tuned for single-class face detection.  The weights are downloaded
+automatically from the GitHub Release on first use and cached locally in
+``models/``.  Pass a custom *model_path* to override (e.g. for testing or
+to use a different checkpoint).
 """
 
 from __future__ import annotations
 
+import hashlib
 import logging
+import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -27,6 +30,67 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# -- Fine-tuned weights distributed via GitHub Releases --------------------
+WEIGHTS_URL = "https://github.com/jenz26/privify/releases/download/face-detector-v0.1/best.pt"
+WEIGHTS_SHA256 = "af443fa561da808b007c62e526d07d947c58e21518b7e10784c704fd9b822d30"
+WEIGHTS_FILENAME = "face-detector-v0.1.pt"
+
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+_DEFAULT_WEIGHTS_PATH = _PROJECT_ROOT / "models" / WEIGHTS_FILENAME
+
+
+def _verify_sha256(filepath: Path, expected: str) -> bool:
+    """Compute SHA-256 of a file and compare against an expected digest.
+
+    Args:
+        filepath: Path to the file to hash.
+        expected: Lowercase hex-encoded SHA-256 digest to compare against.
+
+    Returns:
+        ``True`` if the computed digest matches *expected*, ``False``
+        otherwise.
+    """
+    h = hashlib.sha256()
+    with filepath.open("rb") as f:
+        for chunk in iter(lambda: f.read(8192), b""):
+            h.update(chunk)
+    return h.hexdigest() == expected
+
+
+def _ensure_weights_available(weights_path: Path) -> None:
+    """Download fine-tuned weights if not already cached.
+
+    If the file exists and its SHA-256 matches, this is a no-op.  If the
+    hash does not match (corrupted or tampered file), the file is deleted
+    and re-downloaded.
+
+    Args:
+        weights_path: Local path where the weights should reside.
+
+    Raises:
+        RuntimeError: If the freshly downloaded file fails the integrity
+            check — indicates a stale hash constant or an upstream issue.
+    """
+    weights_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if weights_path.exists():
+        if _verify_sha256(weights_path, WEIGHTS_SHA256):
+            return
+        logger.warning("Weights at %s failed integrity check — re-downloading", weights_path)
+        weights_path.unlink()
+
+    logger.info("Downloading fine-tuned weights from %s", WEIGHTS_URL)
+    urllib.request.urlretrieve(WEIGHTS_URL, weights_path)
+
+    if not _verify_sha256(weights_path, WEIGHTS_SHA256):
+        weights_path.unlink()
+        raise RuntimeError(
+            f"Downloaded weights at {weights_path} failed SHA-256 integrity "
+            f"check. Expected {WEIGHTS_SHA256}, but file hash differs. "
+            f"The Release asset may have been modified, or the constant in "
+            f"detector.py is stale."
+        )
+
 
 @dataclass(frozen=True)
 class Detection:
@@ -35,8 +99,8 @@ class Detection:
     Attributes:
         bbox: Bounding box as ``(x1, y1, x2, y2)`` in pixel coordinates.
         confidence: Detection confidence score in ``[0.0, 1.0]``.
-        class_id: Integer class identifier (0 = face, 1 = plate after
-            fine-tuning; COCO class ids in the provisional stage).
+        class_id: Integer class identifier (0 = face with the default
+            fine-tuned model; COCO class ids if using a generic model).
         class_name: Human-readable class label.
     """
 
@@ -53,8 +117,14 @@ class Detector:
     during ``__init__``.  This keeps instantiation free of I/O and GPU
     allocation, which simplifies testing and allows early configuration.
 
+    When *model_path* is left at its default, the fine-tuned face-detector
+    weights are downloaded automatically from the GitHub Release on first
+    use and cached in ``models/``.  Pass a custom path to use different
+    weights (useful for testing or for swapping to a future version).
+
     Args:
-        model_path: Path to a YOLO weights file (e.g. ``yolov8n.pt``).
+        model_path: Path to a YOLO weights file.  Defaults to the
+            fine-tuned ``face-detector-v0.1.pt`` in ``models/``.
         conf_threshold: Minimum confidence for a detection to be returned.
             Must be in ``(0.0, 1.0]``.
         device: Device string forwarded to ultralytics (``"cpu"``,
@@ -66,14 +136,14 @@ class Detector:
 
     def __init__(
         self,
-        model_path: str | Path = "yolov8n.pt",
+        model_path: str | Path | None = None,
         conf_threshold: float = 0.25,
         device: str | None = None,
     ) -> None:
         if not 0.0 < conf_threshold <= 1.0:
             raise ValueError(f"conf_threshold must be in (0.0, 1.0], got {conf_threshold}")
 
-        self._model_path = Path(model_path)
+        self._model_path = Path(model_path) if model_path is not None else _DEFAULT_WEIGHTS_PATH
         self._conf_threshold = conf_threshold
         self._device = device
         self._model: YOLO | None = None
@@ -85,9 +155,18 @@ class Detector:
     def _load_model(self) -> YOLO:
         """Load the YOLO model from disk.
 
+        If the default fine-tuned weights are configured, they are
+        downloaded and integrity-checked before loading.  Custom paths
+        are assumed to be user-managed and are loaded directly.
+
         Returns:
             The loaded ``ultralytics.YOLO`` model instance.
         """
+        # Auto-download default fine-tuned weights if missing.
+        # Custom paths are user-managed; we don't touch them.
+        if self._model_path == _DEFAULT_WEIGHTS_PATH:
+            _ensure_weights_available(self._model_path)
+
         from ultralytics import YOLO  # noqa: WPS433 — lazy import by design
 
         logger.info("Loading YOLO model from %s", self._model_path)

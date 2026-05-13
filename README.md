@@ -122,6 +122,11 @@ Run the pipeline on a video:
 python -m src.anonymizer --input samples/input.mp4 --output samples/output.mp4
 ```
 
+> **Note:** on first run, `Detector` automatically downloads the fine-tuned
+> face-detection weights (~6 MB) from the `face-detector-v0.1` GitHub Release
+> and caches them in `models/`. Internet connection is required only once per
+> environment.
+
 ## Datasets
 
 | Dataset | Usage | Source |
@@ -146,7 +151,17 @@ Detailed results are reported in `docs/technical_analysis.pdf`.
 
 ## Results summary
 
-*[To be filled in after experiments — tables and key numbers go here]*
+### Face detector (face-detector-v0.1)
+
+YOLOv8n fine-tuned on dataset-v0.2. Validation set: 156 images, 270 face
+instances.
+
+| Metric | Value |
+|---|---|
+| Precision | 0.940 |
+| Recall | 0.869 |
+| mAP@50 | 0.937 |
+| mAP@50-95 | 0.682 |
 
 ## Limitations and failure modes
 
