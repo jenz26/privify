@@ -25,6 +25,13 @@ models/*.pth
 samples/output_*
 *.log
 
+# Test videos (downloaded at runtime or added locally for testing)
+samples/*.mp4
+samples/*.avi
+samples/*.mov
+!samples/.gitkeep
+!samples/input.mp4
+
 # Jupyter
 .ipynb_checkpoints/
 
