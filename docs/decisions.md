@@ -154,3 +154,29 @@ launched from a dedicated Colab notebook (`notebooks/finetune_face.ipynb`).
 - *Committing weights to the repository:* Rejected to avoid bloating the
   repository with binary files.  GitHub Releases are the standard pattern
   for distributing model artefacts.
+
+## 2026-05-13 — Migrate dataset from v0.1 to v0.2 (proper validation split)
+
+**Context:** The Roboflow-exported dataset v0.1 was configured with a
+train/test split only (no validation set).  This would have forced reuse
+of the test set as validation during training, introducing data leakage
+between hyperparameter selection (driven by validation metrics) and final
+evaluation — a methodologically weak setup.
+
+**Decision:** Re-export the dataset from the personal Roboflow workspace
+with an 80/10/10 train/valid/test split.  Published as GitHub Release
+`dataset-v0.2`.  The old `dataset-v0.1` release is kept for archival
+purposes.
+
+**Consequences:**
+- *Positive:* Independent validation set means `best.pt` is selected
+  without data leakage; test set is held out from the tuning loop,
+  producing honest performance reporting.
+- *Positive:* Ghost class `i` (present as a label in the upstream
+  workspace but with zero annotations) removed during re-export.
+- *Positive:* Images standardised to 640×640 (resize-stretch) at the
+  dataset level, reducing the Colab download by ~30 MB and slightly
+  speeding up training.
+- *Negative:* Training set slightly smaller (1 246 vs 1 402 images in
+  v0.1); difference is negligible for fine-tuning.
+- *Negative:* One-shot update of URLs and paths in the notebook.
