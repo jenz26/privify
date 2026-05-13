@@ -87,3 +87,21 @@ dataclass.  No class wrapper is introduced at this stage.
   because it is not portable to Google Colab (ffmpeg availability and codec
   licensing vary), harder to unit-test, and introduces a process boundary
   that complicates error handling.
+
+## 2026-05-13 — MVP demo notebook with COCO placeholder detection
+
+**Context:** The pipeline modules (detector, anonymizer, process_video) are
+functional and tested.  An end-to-end demo runnable by anyone on Google Colab
+is needed to validate the full workflow before investing time in fine-tuning.
+
+**Decision:** Ship a Colab notebook (`notebooks/demo_colab.ipynb`) that uses
+`yolov8n.pt` pre-trained on COCO with class "person" as a temporary proxy for
+face detection.  License plate detection is deferred to the fine-tuning
+milestone.  The notebook is explicit about its MVP status in both the title
+cell and the "Next steps" section.
+
+**Alternatives considered:**
+- *Wait for the fine-tuned model before publishing any demo:* Rejected because
+  it blocks demonstrability of the pipeline architecture.  The notebook proves
+  that detector → anonymizer → video writer compose correctly; swapping the
+  model weights later requires no notebook changes.
