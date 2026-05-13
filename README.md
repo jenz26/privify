@@ -1,5 +1,7 @@
 # Privify
 
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/jenz26/privify/blob/main/notebooks/demo_colab.ipynb)
+
 > GDPR-compliant video anonymization through automatic face and license plate blurring.
 
 Privify is a computer vision pipeline that automatically detects and blurs faces and 
@@ -100,7 +102,7 @@ Open `notebooks/demo_colab.ipynb` in Colab, select a T4 GPU runtime, run all cel
 The notebook downloads model weights, processes a sample video, and produces an 
 anonymized output.
 
-[*Add Colab badge link here once notebook is published*]
+See the badge at the top of this README, or click [here](https://colab.research.google.com/github/jenz26/privify/blob/main/notebooks/demo_colab.ipynb).
 
 ### Option B — Local environment
 
