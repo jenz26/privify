@@ -127,3 +127,30 @@ other local videos.
   them unsuitable for demonstrating facial blur visually.
 - *Hosting the video on Google Drive with gdown:* Rejected because it ties
   notebook reproducibility to the lifecycle of a personal Google account.
+
+## 2026-05-13 — Fine-tuning strategy: WIDER FACE subset + YOLOv8n + GitHub Releases
+
+**Context:** The detector pre-trained on COCO uses "person" (class 0) as a
+temporary proxy for "face".  To anonymize only faces — not full-body
+silhouettes — a specialised detector is needed.
+
+**Decision:** Fine-tune `yolov8n.pt` on a subset of WIDER FACE (~5 000
+images, ~50 epochs).  The dataset is sourced from Roboflow Universe, already
+in YOLOv8 format, avoiding manual conversion work.  Trained weights are
+distributed as a GitHub Release asset (not committed to the repository).
+Training logic lives in a reusable module (`src/training.py`) and is
+launched from a dedicated Colab notebook (`notebooks/finetune_face.ipynb`).
+
+**Alternatives considered:**
+- *YOLOv8s / m / l:* Rejected for consistency with the existing pipeline
+  (nano variant targets edge deployment) and to keep training times short on
+  a free Colab T4 GPU.
+- *Full WIDER FACE (~32 000 images):* Rejected to allow rapid iteration.
+  Scaling to the full dataset is a linear change (update the data source)
+  and is documented as Future Work.
+- *Manual conversion of WIDER FACE from its original annotation format:*
+  Rejected in favour of Roboflow Universe pre-converted datasets, to avoid
+  spending time on data-engineering work outside the project scope.
+- *Committing weights to the repository:* Rejected to avoid bloating the
+  repository with binary files.  GitHub Releases are the standard pattern
+  for distributing model artefacts.
