@@ -58,3 +58,6 @@ htmlcov/
 
 # Personal study notes (not part of the public deliverable)
 docs/exam_notes.md
+
+# Local dataset archives (downloaded for upload to Releases)
+*.zip
