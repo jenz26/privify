@@ -129,6 +129,10 @@ class Detector:
             Must be in ``(0.0, 1.0]``.
         device: Device string forwarded to ultralytics (``"cpu"``,
             ``"cuda:0"``, etc.).  ``None`` lets ultralytics auto-select.
+        class_filter: Optional list of class names to include in results.
+            ``None`` (default) returns all detections.  Useful for
+            multi-class models (e.g. ``["person"]`` on COCO ``yolov8n.pt``
+            to filter the person class only).
 
     Raises:
         ValueError: If *conf_threshold* is not in ``(0.0, 1.0]``.
@@ -139,6 +143,7 @@ class Detector:
         model_path: str | Path | None = None,
         conf_threshold: float = 0.25,
         device: str | None = None,
+        class_filter: list[str] | None = None,
     ) -> None:
         if not 0.0 < conf_threshold <= 1.0:
             raise ValueError(f"conf_threshold must be in (0.0, 1.0], got {conf_threshold}")
@@ -146,6 +151,7 @@ class Detector:
         self._model_path = Path(model_path) if model_path is not None else _DEFAULT_WEIGHTS_PATH
         self._conf_threshold = conf_threshold
         self._device = device
+        self._class_filter = class_filter
         self._model: YOLO | None = None
 
     # ------------------------------------------------------------------
@@ -198,7 +204,9 @@ class Detector:
 
         Returns:
             A list of :class:`Detection` instances, one per detected object
-            whose confidence exceeds the configured threshold.
+            whose confidence exceeds the configured threshold.  If a
+            *class_filter* was configured, only detections whose
+            ``class_name`` is in that list are returned.
 
         Raises:
             ValueError: If *frame* is not a 3-channel image array.
@@ -229,6 +237,9 @@ class Detector:
                         class_name=cls_name,
                     )
                 )
+
+        if self._class_filter is not None:
+            detections = [d for d in detections if d.class_name in self._class_filter]
 
         logger.debug("Detected %d objects in frame", len(detections))
         return detections

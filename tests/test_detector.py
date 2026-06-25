@@ -12,6 +12,25 @@ import pytest
 
 from src.detector import Detection, Detector, _ensure_weights_available, _verify_sha256
 
+
+def _two_class_yolo_mock() -> MagicMock:
+    """Return a YOLO-class mock yielding one 'person' and one 'car' box."""
+    mock_boxes = MagicMock()
+    mock_boxes.__len__ = lambda self: 2
+    mock_boxes.xyxy = [
+        np.array([10.0, 20.0, 110.0, 220.0]),
+        np.array([200.0, 50.0, 300.0, 150.0]),
+    ]
+    mock_boxes.conf = [np.float32(0.92), np.float32(0.81)]
+    mock_boxes.cls = [np.float32(0), np.float32(2)]
+    mock_result = MagicMock()
+    mock_result.boxes = mock_boxes
+    mock_result.names = {0: "person", 2: "car"}
+    mock_model = MagicMock()
+    mock_model.predict.return_value = [mock_result]
+    return MagicMock(return_value=mock_model)
+
+
 # ------------------------------------------------------------------
 # Detection dataclass tests
 # ------------------------------------------------------------------
@@ -130,6 +149,28 @@ class TestDetector:
             grayscale = np.zeros((480, 640), dtype=np.uint8)
             with pytest.raises(ValueError, match="3-channel"):
                 detector.detect(grayscale)
+
+    def test_detector_with_class_filter_includes_only_matching(self) -> None:
+        """class_filter keeps only detections whose class_name matches."""
+        detector = Detector(model_path="fake.pt", class_filter=["person"])
+
+        with patch("ultralytics.YOLO", _two_class_yolo_mock()):
+            frame = np.zeros((480, 640, 3), dtype=np.uint8)
+            detections = detector.detect(frame)
+
+        assert len(detections) == 1
+        assert detections[0].class_name == "person"
+
+    def test_detector_with_no_class_filter_returns_all(self) -> None:
+        """class_filter=None (default) returns detections of every class."""
+        detector = Detector(model_path="fake.pt")  # class_filter defaults to None
+
+        with patch("ultralytics.YOLO", _two_class_yolo_mock()):
+            frame = np.zeros((480, 640, 3), dtype=np.uint8)
+            detections = detector.detect(frame)
+
+        assert len(detections) == 2
+        assert {d.class_name for d in detections} == {"person", "car"}
 
 
 # ------------------------------------------------------------------
