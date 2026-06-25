@@ -5,6 +5,14 @@ description = "GDPR-compliant video anonymization"
 requires-python = ">=3.10"
 license = {text = "MIT"}
 
+[project.optional-dependencies]
+# Development-only tooling, NOT required to run the library. Kept out of
+# requirements.txt, which stays runtime-only. Install with:
+#   pip install -e ".[dev]"
+dev = [
+    "ipykernel",  # execute the notebooks in VS Code / Jupyter
+]
+
 [tool.ruff]
 line-length = 100
 target-version = "py310"
