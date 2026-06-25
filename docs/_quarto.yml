@@ -1,0 +1,23 @@
+project:
+  type: default
+  output-dir: .
+
+format:
+  typst:
+    papersize: a4
+    fontsize: 10pt
+    margin:
+      x: 2.5cm
+      y: 2.8cm
+    mainfont: "New Computer Modern"
+    sansfont: "New Computer Modern Sans"
+    monofont: "DejaVu Sans Mono"
+    toc: true
+    toc-depth: 2
+    toc-title: "Contents"
+    number-sections: true
+    section-numbering: "1.1.1"
+    columns: 1
+    fig-pos: 'h'
+    fig-cap-location: bottom
+    tbl-cap-location: top

@@ -61,3 +61,7 @@ docs/exam_notes.md
 
 # Local dataset archives (downloaded for upload to Releases)
 *.zip
+
+# Quarto build artifacts (kept gitignored; only final PDF is committed)
+docs/.quarto/
+docs/_freeze/

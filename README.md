@@ -189,6 +189,14 @@ Discussed in `docs/technical_analysis.pdf`. Key points:
 - The system is intended as a privacy-enhancing tool, not as a workaround for 
   unlawful surveillance.
 
+## Documentation
+
+- [Technical Analysis Document](docs/technical_analysis.pdf) — 10-page report 
+  covering problem statement, methodology, experimental results, failure analysis, 
+  and ethical considerations.
+- [Architectural Decision Records](docs/decisions.md) — versioned log of design 
+  decisions made during development.
+
 ## License
 
 [*To be decided — MIT or Apache-2.0 recommended*]

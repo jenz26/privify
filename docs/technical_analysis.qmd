@@ -1,0 +1,86 @@
+---
+title: "Privify"
+subtitle: "A Computer Vision Pipeline for GDPR-Compliant Face Anonymization"
+author:
+  - name: "Marco Contin"
+    affiliation: "Epicode Institute of Technology"
+    email: "s00006824@epicode.edu.mt"
+date: today
+abstract: |
+  Privify is a Python-based computer vision pipeline that detects and
+  anonymizes faces in video footage to support GDPR compliance for small
+  and medium enterprises operating CCTV systems. The system combines a
+  fine-tuned YOLOv8n detector (mAP@50 = 0.937 on a single-class face
+  dataset) with a configurable Gaussian blur anonymizer. This report
+  describes the pipeline architecture, training methodology, empirical
+  evaluation, and the domain-shift failure mode observed when deploying
+  the in-distribution-optimized detector on street-level CCTV scenes — a
+  concrete illustration of the metric-vs-behavior gap in applied ML.
+keywords: [computer vision, object detection, YOLOv8, GDPR, anonymization, domain shift, transfer learning]
+---
+
+# Problem Statement
+
+> TODO: motivare il problema (GDPR + CCTV PMI), stato dell'arte,
+> positioning di Privify. ~1.5 pagine.
+
+# Methodology
+
+> TODO: pipeline overview, design decisions (Wrapper pattern, lazy
+> loading, frozen dataclasses, DI), choice of YOLOv8n + Gaussian blur,
+> training setup, dataset strategy. ~2 pagine.
+
+## Pipeline Architecture
+
+## Detection Model
+
+## Anonymization
+
+## Training Setup
+
+# Experimental Results
+
+> TODO: metriche del modello fine-tuned, training curves, qualitative
+> evaluation, comparison vs COCO baseline. ~2 pagine.
+
+## Quantitative Metrics
+
+## Training Convergence
+
+## Qualitative Evaluation
+
+# Failure Analysis
+
+> TODO: domain shift documentato, root cause analysis, mitigation
+> roadmap. ~1.5 pagine. SEZIONE FORTE — qui c'è il vero contributo
+> narrativo del progetto.
+
+## Domain Shift on Street-Level CCTV
+
+## Root Cause Analysis
+
+## Mitigation Roadmap
+
+# Ethical Considerations
+
+> TODO: privacy by design, GDPR principle of minimization vs
+> effectiveness, biometric quasi-identifiers, dataset licensing (CC BY
+> 4.0), model licensing (AGPL-3.0), responsible deployment. ~1.5 pagine.
+
+## Privacy by Design
+
+## GDPR Alignment
+
+## Dataset and Model Licensing
+
+## Responsible Deployment Considerations
+
+# Conclusions
+
+> TODO: ricap, lessons learned, future work. ~0.5 pagine.
+
+# References
+
+> TODO: bibliografia minima (3-6 references). Citare YOLOv8 paper,
+> McPherson 2016 sulla reversibilità di pixelation, GDPR text,
+> Roboflow dataset attribution, eventuali altri paper letti.
