@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import FrozenInstanceError
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import cv2
 import numpy as np
@@ -78,7 +78,7 @@ class TestProcessVideo:
         anonymizer = _make_mock_anonymizer()
         output = tmp_path / "output.mp4"
 
-        stats = process_video(fake_video, output, detector, anonymizer)
+        stats = process_video(fake_video, output, detector=detector, anonymizer=anonymizer)
 
         assert stats.total_frames == NUM_TEST_FRAMES
         assert stats.total_detections == NUM_TEST_FRAMES
@@ -94,8 +94,8 @@ class TestProcessVideo:
             process_video(
                 tmp_path / "nonexistent.mp4",
                 tmp_path / "output.mp4",
-                detector,
-                anonymizer,
+                detector=detector,
+                anonymizer=anonymizer,
             )
 
     def test_process_video_calls_detector_and_anonymizer_per_frame(
@@ -105,10 +105,61 @@ class TestProcessVideo:
         detector = _make_mock_detector()
         anonymizer = _make_mock_anonymizer()
 
-        process_video(fake_video, tmp_path / "output.mp4", detector, anonymizer)
+        process_video(fake_video, tmp_path / "output.mp4", detector=detector, anonymizer=anonymizer)
 
         assert detector.detect.call_count == NUM_TEST_FRAMES
         assert anonymizer.anonymize.call_count == NUM_TEST_FRAMES
+
+
+class TestProcessVideoModes:
+    """The mode parameter wires the correct detector/anonymizer per scenario."""
+
+    def test_process_video_face_mode(self, fake_video: Path, tmp_path: Path):
+        """mode='face' uses the default face Detector and full-box Anonymizer."""
+        with (
+            patch("src.pipeline.Detector") as mock_det,
+            patch("src.pipeline.Anonymizer") as mock_anon,
+        ):
+            mock_det.return_value.detect.return_value = []
+            mock_anon.return_value.anonymize.side_effect = lambda frame, _dets: frame
+
+            process_video(fake_video, tmp_path / "out.mp4", mode="face")
+
+        mock_det.assert_called_once_with()
+        mock_anon.assert_called_once_with(box_mode="full")
+
+    def test_process_video_person_upper_mode(self, fake_video: Path, tmp_path: Path):
+        """mode='person_upper' uses the COCO person filter and upper-region blur."""
+        with (
+            patch("src.pipeline.Detector") as mock_det,
+            patch("src.pipeline.Anonymizer") as mock_anon,
+        ):
+            mock_det.return_value.detect.return_value = []
+            mock_anon.return_value.anonymize.side_effect = lambda frame, _dets: frame
+
+            process_video(fake_video, tmp_path / "out.mp4", mode="person_upper")
+
+        mock_det.assert_called_once_with(model_path="models/yolov8n.pt", class_filter=["person"])
+        mock_anon.assert_called_once_with(box_mode="upper", upper_fraction=0.30)
+
+    def test_process_video_person_full_mode(self, fake_video: Path, tmp_path: Path):
+        """mode='person_full' uses the COCO person filter and full-box blur."""
+        with (
+            patch("src.pipeline.Detector") as mock_det,
+            patch("src.pipeline.Anonymizer") as mock_anon,
+        ):
+            mock_det.return_value.detect.return_value = []
+            mock_anon.return_value.anonymize.side_effect = lambda frame, _dets: frame
+
+            process_video(fake_video, tmp_path / "out.mp4", mode="person_full")
+
+        mock_det.assert_called_once_with(model_path="models/yolov8n.pt", class_filter=["person"])
+        mock_anon.assert_called_once_with(box_mode="full")
+
+    def test_process_video_requires_mode_or_detectors(self, fake_video: Path, tmp_path: Path):
+        """Neither mode nor a detector/anonymizer pair provided → ValueError."""
+        with pytest.raises(ValueError, match="either 'mode'"):
+            process_video(fake_video, tmp_path / "out.mp4")
 
 
 class TestProcessingStats:

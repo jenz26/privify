@@ -21,6 +21,7 @@ import logging
 import time
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
 import cv2
 
@@ -28,6 +29,12 @@ from src.anonymizer import Anonymizer
 from src.detector import Detector
 
 logger = logging.getLogger(__name__)
+
+# Pre-trained COCO weights used by the person-based modes. Ultralytics
+# downloads this asset into models/ on first use (gitignored).
+_COCO_WEIGHTS_PATH = "models/yolov8n.pt"
+_PERSON_CLASS_FILTER = ["person"]
+_UPPER_FRACTION = 0.30
 
 
 @dataclass(frozen=True)
@@ -53,31 +60,88 @@ class ProcessingStats:
         return self.total_frames / self.elapsed_seconds
 
 
+def _resolve_components(
+    mode: Literal["face", "person_upper", "person_full"] | None,
+    detector: Detector | None,
+    anonymizer: Anonymizer | None,
+) -> tuple[Detector, Anonymizer]:
+    """Select the detector/anonymizer pair for a run.
+
+    If *mode* is given, build the preset pair for that mode (ignoring any
+    injected *detector*/*anonymizer*).  Otherwise fall back to the injected
+    pair.
+
+    Raises:
+        ValueError: If neither *mode* nor both *detector* and *anonymizer*
+            are provided.
+    """
+    if mode is not None:
+        if mode == "face":
+            return Detector(), Anonymizer(box_mode="full")
+        if mode == "person_upper":
+            return (
+                Detector(model_path=_COCO_WEIGHTS_PATH, class_filter=_PERSON_CLASS_FILTER),
+                Anonymizer(box_mode="upper", upper_fraction=_UPPER_FRACTION),
+            )
+        if mode == "person_full":
+            return (
+                Detector(model_path=_COCO_WEIGHTS_PATH, class_filter=_PERSON_CLASS_FILTER),
+                Anonymizer(box_mode="full"),
+            )
+        raise ValueError(f"unknown mode {mode!r}")
+    if detector is not None and anonymizer is not None:
+        return detector, anonymizer
+    raise ValueError("either 'mode' or ('detector' and 'anonymizer') must be provided")
+
+
 def process_video(
     input_path: Path,
     output_path: Path,
-    detector: Detector,
-    anonymizer: Anonymizer,
+    *,
+    mode: Literal["face", "person_upper", "person_full"] | None = None,
+    detector: Detector | None = None,
+    anonymizer: Anonymizer | None = None,
 ) -> ProcessingStats:
     """Read *input_path* frame-by-frame, anonymize, and write to *output_path*.
+
+    The detector/anonymizer pair is selected in one of two ways:
+
+    - **By mode** (recommended): pass *mode* to pick a preset hybrid
+      configuration.  This forces an explicit policy decision per deployment
+      context and ignores any *detector*/*anonymizer* arguments.
+
+      - ``"face"``: fine-tuned face detector, full-box blur (close-up scenes).
+      - ``"person_upper"``: COCO ``person`` detector, upper-region blur
+        (head-shoulders proxy, conservative for CCTV).
+      - ``"person_full"``: COCO ``person`` detector, full-box blur
+        (full-body anonymization, maximally conservative).
+
+    - **By dependency injection** (advanced): leave *mode* as ``None`` and
+      pass both *detector* and *anonymizer* explicitly.
 
     Args:
         input_path: Path to the source video file.
         output_path: Path where the anonymized video will be written.
             Parent directories must already exist.
-        detector: A :class:`~src.detector.Detector` (or compatible object)
-            whose ``detect(frame)`` method returns a list of detections.
-        anonymizer: An :class:`~src.anonymizer.Anonymizer` (or compatible
-            object) whose ``anonymize(frame, detections)`` method returns
-            the blurred frame.
+        mode: Preset hybrid configuration (keyword-only).  When given,
+            *detector*/*anonymizer* are built automatically and any injected
+            ones are ignored.
+        detector: A :class:`~src.detector.Detector` (keyword-only).  Used
+            only when *mode* is ``None``.
+        anonymizer: An :class:`~src.anonymizer.Anonymizer` (keyword-only).
+            Used only when *mode* is ``None``.
 
     Returns:
         A :class:`ProcessingStats` summarising the run.
 
     Raises:
+        ValueError: If neither *mode* nor both *detector* and *anonymizer*
+            are provided.
         FileNotFoundError: If *input_path* does not exist or cannot be
             opened by OpenCV.
     """
+    detector, anonymizer = _resolve_components(mode, detector, anonymizer)
+
     cap = cv2.VideoCapture(str(input_path))
     if not cap.isOpened():
         raise FileNotFoundError(f"Cannot open video file: {input_path}")
