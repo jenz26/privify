@@ -1,0 +1,68 @@
+{
+  "video": "samples/input.mp4",
+  "n_frames": 10,
+  "sampling": "uniform-evenly-spaced",
+  "criterion": "whole identifiable persons (partial bodies included) \u2014 GDPR anonymization target",
+  "annotations": [
+    {
+      "sample": 0,
+      "frame_idx": 59,
+      "person_count": 17,
+      "notes": "17 persone, 2 foto su cartelloni a sinistra, 1 sagoma su cartello zona pedonale"
+    },
+    {
+      "sample": 1,
+      "frame_idx": 178,
+      "person_count": 20,
+      "notes": "20 persone, 2 foto su cartelloni a sinistra, 1 sagoma su cartello zona pedonale"
+    },
+    {
+      "sample": 2,
+      "frame_idx": 298,
+      "person_count": 19,
+      "notes": "19 persone, 2 foto su cartelloni a sinistra, 1 sagoma su cartello zona pedonale"
+    },
+    {
+      "sample": 3,
+      "frame_idx": 417,
+      "person_count": 20,
+      "notes": "20 persone, 2 foto su cartelloni a sinistra, 1 sagoma su cartello zona pedonale"
+    },
+    {
+      "sample": 4,
+      "frame_idx": 536,
+      "person_count": 18,
+      "notes": "18 persone, 2 foto su cartelloni a sinistra, 1 sagoma su cartello zona pedonale"
+    },
+    {
+      "sample": 5,
+      "frame_idx": 656,
+      "person_count": 21,
+      "notes": "21 persone, 2 foto su cartelloni a sinistra, 1 sagoma su cartello zona pedonale"
+    },
+    {
+      "sample": 6,
+      "frame_idx": 775,
+      "person_count": 20,
+      "notes": "20 persone, 2 foto su cartelloni a sinistra, 1 sagoma su cartello zona pedonale"
+    },
+    {
+      "sample": 7,
+      "frame_idx": 894,
+      "person_count": 23,
+      "notes": "23 persone, 2 foto su cartelloni a sinistra, 1 sagoma su cartello zona pedonale"
+    },
+    {
+      "sample": 8,
+      "frame_idx": 1014,
+      "person_count": 18,
+      "notes": "18 persone, 2 foto su cartelloni a sinistra, 1 sagoma su cartello zona pedonale"
+    },
+    {
+      "sample": 9,
+      "frame_idx": 1133,
+      "person_count": 19,
+      "notes": "19 persone, 2 foto su cartelloni a sinistra, 1 sagoma su cartello zona pedonale"
+    }
+  ]
+}
