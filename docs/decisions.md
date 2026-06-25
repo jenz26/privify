@@ -249,3 +249,46 @@ back to sequential decoding when seeking is unsupported.
 - *Re-using the `Detector` wrapper for the COCO baseline:* Not possible by
   design — the wrapper auto-fetches our fine-tuned face weights; the baseline
   loads `yolov8n.pt` directly via ultralytics.
+
+## 2026-06-26 — Hybrid detection strategy: face vs person modes
+
+**Status:** Accepted
+
+**Context:** The OOD evaluation (commit `999a4ee`) quantified empirically the
+domain shift of `face-detector-v0.1` on the CCTV deployment target: recall
+17.2% (range 5%-44%) versus 80.4% (range 65%-90%) for the COCO `yolov8n.pt`
+baseline with class `person`. The original Privify v0.1 pipeline, based
+exclusively on the face detector, is not adequate for the CCTV street-level
+deployment target.
+
+**Decision:** Extend the pipeline with three configurable modes:
+
+1. `face`: fine-tuned face detector, blur of the face bbox (original mode,
+   suited to close-up scenes).
+2. `person_upper`: COCO person detector, blur of the upper 30% of the bbox
+   (head-shoulders proxy, conservative for CCTV).
+3. `person_full`: COCO person detector, blur of the whole bbox (full-body
+   anonymization, maximally conservative).
+
+`mode` is a mandatory parameter of the `process_video` API, forcing an
+explicit policy decision based on the deployment context. The API also keeps
+manual dependency injection (`detector` + `anonymizer`) for advanced use
+cases.
+
+**Consequences:**
+
+- (+) Users can adapt the pipeline to the deployment scenario without
+  re-training (`face` for close-up scenes, `person_upper`/`person_full` for
+  CCTV street-level).
+- (+) The fine-tuned `face-detector-v0.1` keeps its usefulness for its target
+  domain (close-up), instead of being made obsolete by the domain shift.
+- (+) The design is composable: a future `person_face_hybrid` mode (face when
+  available, fallback to person otherwise) can be added without breaking
+  changes.
+- (-) The `process_video` API is slightly more complex for the user
+  (mandatory mode, explicit policy choice).
+- (-) `person_upper` introduces an `upper_fraction` parameter that needs
+  tuning for specific use cases (the 0.30 default works well on CCTV
+  street-level, but may be too conservative for other scenarios).
+- (-) The `person_*` modes require downloading `yolov8n.pt` on first use
+  (~6 MB, cached in `models/` via the `fix(eval)` commit `7f6ef67`).
