@@ -22,6 +22,8 @@ Thumbs.db
 data/
 models/*.pt
 models/*.pth
+# Stray model weights (should be downloaded into models/ instead)
+/*.pt
 samples/output_*
 *.log
 
