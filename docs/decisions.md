@@ -207,3 +207,45 @@ before loading.
   local caching; download is ~6 MB, one-time per environment).
 - *Negative:* Users behind strict firewalls must pre-populate `models/`
   manually.
+
+## 2026-06-25 — Out-of-distribution evaluation via count-based recall
+
+**Context:** The fine-tuned `face-detector-v0.1` scores well on the WIDER
+FACE test split (mAP@50 0.937) but qualitatively misses subjects on the real
+CCTV deployment clip (`samples/input.mp4`), where many faces are non-frontal,
+small, or occluded. An empirical, reproducible measure of this domain shift
+is needed for the TAD (sections 3 *Experimental Results* and 4 *Failure
+Analysis*).
+
+**Decision:** Add `notebooks/ood_evaluation.ipynb`, which samples 10 frames
+at uniform, deterministic spacing and scores two detectors against a manual
+per-frame **person count** (the GDPR anonymization target): our fine-tuned
+face detector vs. the stock `yolov8n.pt` COCO model filtered to class
+`person`. The metric is a **count-based recall**, `min(detections, GT) / GT`,
+aggregated as mean/std/min/max. Ground truth lives in versioned
+`evaluation/ground_truth.json`; comparison figures in `evaluation/figures/`;
+extracted frames are gitignored as regenerable artifacts.
+
+To keep the versioned ground truth portable across environments, annotations
+are keyed by **sample ordinal** (`0 … N-1`), not by the absolute frame index:
+`cv2.CAP_PROP_FRAME_COUNT` is unreliable and can differ between OpenCV/codec
+builds (local vs Colab), so the absolute index is stored only for reference
+and a drift triggers a warning, not a hard failure. Frame counting falls back
+to a full decode when the reported count is non-positive, and frame reads fall
+back to sequential decoding when seeking is unsupported.
+
+**Alternatives considered:**
+- *IoU-matched recall with per-person bounding boxes:* Rejected for this
+  milestone — it requires box-level manual annotation of every subject plus a
+  matching scheme, disproportionate effort for a 10-frame qualitative-to-
+  quantitative bridge. Count-based recall captures coverage at far lower
+  annotation cost; box-level evaluation remains Future Work.
+- *Uncapped `detections / GT` ratio:* Rejected because false positives or
+  multiple detections per subject can push the value above 1, which is not
+  interpretable as recall. Clipping with `min(·)` keeps the metric in
+  `[0, 1]`; raw counts are retained in the table for transparency.
+- *Curated frame selection:* Rejected to avoid cherry-picking; uniform
+  deterministic sampling is reproducible and defensible at the oral exam.
+- *Re-using the `Detector` wrapper for the COCO baseline:* Not possible by
+  design — the wrapper auto-fetches our fine-tuned face weights; the baseline
+  loads `yolov8n.pt` directly via ultralytics.

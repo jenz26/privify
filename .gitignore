@@ -65,3 +65,8 @@ docs/exam_notes.md
 # Quarto build artifacts (kept gitignored; only final PDF is committed)
 docs/.quarto/
 docs/_freeze/
+
+# Out-of-Distribution evaluation: extracted frames are large and fully
+# regenerable from the video; ground_truth.json and figures/ are versioned
+# deliverables used in the Technical Analysis Document.
+evaluation/frames/
