@@ -11,6 +11,7 @@ license = {text = "MIT"}
 #   pip install -e ".[dev]"
 dev = [
     "ipykernel",  # execute the notebooks in VS Code / Jupyter
+    "nbconvert",  # headless notebook execution (jupyter nbconvert --execute)
 ]
 
 [tool.ruff]
