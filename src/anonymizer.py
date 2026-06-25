@@ -17,6 +17,7 @@ Design invariants:
 from __future__ import annotations
 
 import logging
+from typing import Literal
 
 import cv2
 import numpy as np
@@ -28,9 +29,22 @@ logger = logging.getLogger(__name__)
 # Minimum dimension (width or height) for a bbox to be blurred.
 DEFAULT_MIN_BBOX_SIZE: int = 4
 
+# Default fraction of the bbox height blurred in "upper" box_mode.
+DEFAULT_UPPER_FRACTION: float = 0.30
+
 
 class Anonymizer:
     """Applies Gaussian blur to detected regions in a video frame.
+
+    Two blur regions are supported via *box_mode*:
+
+    - ``"full"`` (default) blurs the entire bounding box.  This is correct
+      for a face detector, whose boxes already tightly frame the sensitive
+      region.
+    - ``"upper"`` blurs only the top *upper_fraction* of the box.  This is a
+      head-shoulders proxy for CCTV scenes where a COCO ``person`` detector
+      returns a full-body box: blurring just the upper slice anonymizes the
+      identifying region (the head) without obscuring the whole silhouette.
 
     Args:
         blur_kernel_size: Side length of the square Gaussian kernel.
@@ -38,15 +52,23 @@ class Anonymizer:
         min_bbox_size: Minimum width **and** height (in pixels) for a
             detection to be blurred.  Detections smaller than this on
             either axis are silently skipped.  Defaults to 4.
+        box_mode: ``"full"`` to blur the whole bbox, or ``"upper"`` to blur
+            only its top *upper_fraction* (head-shoulders proxy).
+        upper_fraction: Fraction of the bbox height blurred in ``"upper"``
+            mode.  Must be in ``(0.0, 1.0]``.  Defaults to 0.30.
 
     Raises:
-        ValueError: If *blur_kernel_size* is not a positive odd integer.
+        ValueError: If *blur_kernel_size* is not a positive odd integer, if
+            *box_mode* is not ``"full"`` or ``"upper"``, or if
+            *upper_fraction* is not in ``(0.0, 1.0]``.
     """
 
     def __init__(
         self,
         blur_kernel_size: int = 51,
         min_bbox_size: int = DEFAULT_MIN_BBOX_SIZE,
+        box_mode: Literal["full", "upper"] = "full",
+        upper_fraction: float = DEFAULT_UPPER_FRACTION,
     ) -> None:
         if blur_kernel_size <= 0 or blur_kernel_size % 2 == 0:
             raise ValueError(
@@ -54,9 +76,15 @@ class Anonymizer:
             )
         if min_bbox_size < 0:
             raise ValueError(f"min_bbox_size must be >= 0, got {min_bbox_size}")
+        if box_mode not in ("full", "upper"):
+            raise ValueError(f"box_mode must be 'full' or 'upper', got {box_mode!r}")
+        if not 0.0 < upper_fraction <= 1.0:
+            raise ValueError(f"upper_fraction must be in (0.0, 1.0], got {upper_fraction}")
 
         self._kernel_size = blur_kernel_size
         self._min_bbox_size = min_bbox_size
+        self._box_mode = box_mode
+        self._upper_fraction = upper_fraction
 
     # ------------------------------------------------------------------
     # Public API
@@ -74,8 +102,10 @@ class Anonymizer:
             detections: Detections whose bounding boxes will be blurred.
 
         Returns:
-            A **new** array with Gaussian blur applied inside each valid
-            bounding box.  The input *frame* is never modified.
+            A **new** array with Gaussian blur applied to each valid
+            detection.  In ``"full"`` mode the entire bounding box is
+            blurred; in ``"upper"`` mode only its top *upper_fraction*.
+            The input *frame* is never modified.
         """
         output = frame.copy()
 
@@ -106,8 +136,15 @@ class Anonymizer:
                 )
                 continue
 
-            roi = output[y1:y2, x1:x2]
-            output[y1:y2, x1:x2] = cv2.GaussianBlur(
+            # In "upper" mode blur only the top slice of the box (head-shoulders
+            # proxy for full-body person boxes); guarantee at least 1px height.
+            if self._box_mode == "upper":
+                blur_y2 = max(y1 + 1, y1 + int(roi_h * self._upper_fraction))
+            else:
+                blur_y2 = y2
+
+            roi = output[y1:blur_y2, x1:x2]
+            output[y1:blur_y2, x1:x2] = cv2.GaussianBlur(
                 roi,
                 (self._kernel_size, self._kernel_size),
                 0,

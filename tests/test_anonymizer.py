@@ -110,3 +110,50 @@ class TestAnonymizer:
         result = anonymizer.anonymize(frame, [det])
 
         assert np.array_equal(result, frame)
+
+    def test_invalid_upper_fraction_raises(self) -> None:
+        """upper_fraction outside (0.0, 1.0] raises ValueError."""
+        for bad in (0.0, 1.1, -0.5):
+            with pytest.raises(ValueError, match="upper_fraction"):
+                Anonymizer(upper_fraction=bad)
+
+    def test_invalid_box_mode_raises(self) -> None:
+        """An unknown box_mode raises ValueError."""
+        with pytest.raises(ValueError, match="box_mode"):
+            Anonymizer(box_mode="middle")  # type: ignore[arg-type]
+
+    def test_box_mode_full_matches_default_behavior(self) -> None:
+        """box_mode='full' (explicit) blurs the same region as the default."""
+        frame = np.zeros((100, 100, 3), dtype=np.uint8)
+        frame[::2, ::2] = 255
+        det = _make_detection(x1=30, y1=30, x2=70, y2=70)
+
+        default_result = Anonymizer(blur_kernel_size=15).anonymize(frame, [det])
+        full_result = Anonymizer(blur_kernel_size=15, box_mode="full").anonymize(frame, [det])
+
+        assert np.array_equal(default_result, full_result)
+
+    def test_box_mode_upper_blurs_only_top_fraction(self) -> None:
+        """upper mode blurs the top 30% of the bbox and leaves the rest intact."""
+        frame = np.zeros((200, 200, 3), dtype=np.uint8)
+        frame[::2, ::2] = 255  # high-frequency pattern so blur is detectable
+
+        x1, y1, x2, y2 = 40, 40, 160, 140  # 120 wide, 100 tall
+        det = _make_detection(x1=x1, y1=y1, x2=x2, y2=y2)
+        upper_fraction = 0.30
+        anonymizer = Anonymizer(
+            blur_kernel_size=15, box_mode="upper", upper_fraction=upper_fraction
+        )
+
+        result = anonymizer.anonymize(frame, [det])
+
+        height = y2 - y1
+        split = y1 + int(height * upper_fraction)  # boundary row (blurred height = 30)
+
+        # Top slice [y1:split] is blurred (changed).
+        assert not np.array_equal(result[y1:split, x1:x2], frame[y1:split, x1:x2])
+        # Lower slice [split:y2] inside the bbox is untouched.
+        assert np.array_equal(result[split:y2, x1:x2], frame[split:y2, x1:x2])
+        # Everything outside the bbox is untouched.
+        assert np.array_equal(result[:y1, :], frame[:y1, :])
+        assert np.array_equal(result[y2:, :], frame[y2:, :])
