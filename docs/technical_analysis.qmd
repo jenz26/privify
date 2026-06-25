@@ -14,15 +14,88 @@ abstract: |
   dataset) with a configurable Gaussian blur anonymizer. This report
   describes the pipeline architecture, training methodology, empirical
   evaluation, and the domain-shift failure mode observed when deploying
-  the in-distribution-optimized detector on street-level CCTV scenes — a
+  the in-distribution-optimized detector on street-level CCTV scenes. This is a
   concrete illustration of the metric-vs-behavior gap in applied ML.
 keywords: [computer vision, object detection, YOLOv8, GDPR, anonymization, domain shift, transfer learning]
 ---
 
 # Problem Statement
 
-> TODO: motivare il problema (GDPR + CCTV PMI), stato dell'arte,
-> positioning di Privify. ~1.5 pagine.
+The widespread adoption of video surveillance among Italian small and medium
+enterprises (SMEs) has created a regulatory paradox: the same technology that
+protects people and assets exposes their data to significant compliance risks
+under the General Data Protection Regulation (GDPR, EU 2016/679). A CCTV camera
+in a retail store, an office, or a logistics site daily captures dozens of
+recognizable faces (employees, customers, visitors) that constitute personal
+data under Article 4 of the GDPR. It is worth specifying that CCTV footage does
+not automatically qualify as biometric data protected under Article 9: this
+category applies only when images are processed through facial recognition
+systems for the unique identification of a natural person. However, even within
+the standard personal data regime, the data controller is required to adopt
+technical and organizational measures proportionate to risk, in accordance with
+the principles of accountability (Art. 5.2) and privacy by design (Art. 25).
+When recordings must be retained beyond the ordinary term, shared with third
+parties (insurance companies, law enforcement, audits), or even partially
+published, these measures must concretely reduce the identifiability of the
+subjects captured. For the average Italian SME, which typically lacks a
+dedicated Data Protection Officer and a substantial IT budget, this requirement
+often translates into inaction: videos are deleted for safety or, worse,
+retained in violation, with exposure to the sanctions provided under Article
+83.5 of the GDPR, up to 20 million euros or 4% of annual worldwide turnover.
+
+Existing market solutions polarize into two segments that leave the intermediate
+space uncovered. On one side, solutions such as Brighter AI or Pimloc Secure
+Redact offer production-grade pipelines targeting the enterprise segment,
+typically with pricing that is not publicly listed or tied to consumption/volume
+models. This commercial orientation makes them inaccessible to IT consultants
+serving SMEs as an off-the-shelf purchase. On the other side, manual solutions
+based on professional video editors (Adobe Premiere, DaVinci Resolve) require
+expert operators and production time linear in the number of frames,
+economically prohibitive on realistic CCTV volumes. Numerous open-source face
+blurring projects also exist (typically educational notebooks or single-file
+scripts on GitHub), but they rarely offer the level of engineering rigor
+required for professional deployment: automated testing, continuous integration,
+explicit versioning of models and datasets, traceable architectural decisions.
+The opportunity space for IT consultants working with Italian SMEs is therefore
+a system that combines accessibility (open-source, self-hostable) with
+engineering maturity (auditable, tested, documented), characteristics that the
+GDPR itself rewards through the accountability principle of Article 5.2.
+
+Privify is designed to occupy this space. It is an open-source computer vision
+pipeline that automatically detects faces in CCTV footage and applies a
+configurable Gaussian blur as a visual redaction measure. Whether this operation
+qualifies as anonymization in the strict GDPR sense (Recital 26) depends on
+contextual parameters such as blur intensity, frame resolution, and the presence
+of other identifiers in the scene. Recent research has demonstrated that
+Gaussian blur can be partially attacked through deblurring and re-identification
+techniques [citation placeholder: gaussian blur deanonymization paper]; the
+system is therefore designed to allow the data controller to calibrate
+parameters in an informed manner and to document the technical choice adopted.
+The system combines a YOLOv8n detector fine-tuned on a single-class face dataset
+(mAP@50 = 0.937 on the validation set) with a stateless OpenCV-based anonymizer.
+The entire pipeline is written in Python, accompanied by an automated test
+suite, continuous integration on GitHub Actions, and Architectural Decision
+Records documenting every technical choice. The target deployment is the IT
+consultant working with Italian SMEs: the system must run on a laptop or a small
+server without dedicated GPU, process archived video in times acceptable for
+batch use, and produce redacted output that the data controller can legitimately
+retain or share. The extension of the detector to the license plate class, part
+of Privify's original positioning for the Italian CCTV context (drive-through,
+private parking, commercial entrances), is planned as future work for v0.2.
+
+This report documents the development of Privify in its first iteration (v0.1),
+from the initial architectural choice through the detector fine-tuning and the
+empirical evaluation on test videos. The main contribution is not algorithmic
+novelty: YOLOv8 and Gaussian blur are established techniques. It is instead the
+engineering quality of the integration and the transparency with which both the
+successes (high detection metrics in the in-distribution domain) and the limits
+(qualitative failure on street-level CCTV scenes, due to a textbook case of
+domain shift between training and deployment) are documented. The latter
+evidence, far from constituting a defect to conceal, represents the true
+didactic contribution of the project: a concrete demonstration of the gap
+between performance metric and qualitative behavior that characterizes applied
+machine learning, and an explicit roadmap to address it in subsequent
+iterations.
 
 # Methodology
 
