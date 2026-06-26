@@ -1,6 +1,8 @@
 project:
   type: default
   output-dir: .
+  render:
+    - docs/technical_analysis.qmd
 
 format:
   typst:
