@@ -533,17 +533,147 @@ documented for subsequent iterations.
 
 # Ethical Considerations
 
-> TODO: privacy by design, GDPR principle of minimization vs
-> effectiveness, biometric quasi-identifiers, dataset licensing (CC BY
-> 4.0), model licensing (AGPL-3.0), responsible deployment. ~1.5 pagine.
+Privify operates on personal data in a video surveillance context, where ethical
+and compliance considerations are not accessory to the system but constitute its
+primary functional requirements. This section articulates the system's design
+choices in relation to the GDPR, traces the licensing chain of its components, and
+identifies the residual risks of which the data controller must be informed.
 
 ## Privacy by Design
 
+The system's architecture is designed as a concrete implementation of the privacy
+by design principle (GDPR Art. 25), which requires technical and organizational
+measures to ensure personal data protection by default. Three design choices
+translate this principle into practice.
+
+The first is the stateless nature of processing: the pipeline does not persist any
+personal data between the input video and the redacted output. The `Detector` and
+`Anonymizer` are wrappers without external state beyond the single frame;
+`ProcessingStats` collects aggregate statistics without personal identifiers. There
+is no database, no persistent log with identifiers, no caching of intermediate
+images. The minimization principle (Art. 5.1.c) is structurally applied: the system
+can only process the data strictly necessary for the processing itself, and retains
+none of it beyond the processing duration.
+
+The second is the pixel-level irreversibility of the blur: the blurred region
+replaces the original pixels in the output frame, without preserving recoverable
+information about the original pixels in the output format. The output video is
+therefore a distinct datum from the input video, and the input video can be deleted
+after processing without compromising the usability of the output. This choice is
+motivated both by the minimization principle and by the consideration that the
+system should not facilitate the retention of personal data beyond the stated
+purpose.
+
+The third is the presence of a complete audit trail: every design decision is
+documented in Architectural Decision Records (`docs/decisions.md`), every component
+is covered by automated tests (68 tests in continuous integration), and the code is
+public on an open-source repository with a linear git history. This transparency
+serves the accountability principle (Art. 5.2), which requires the data controller
+to be able to demonstrate the conformity of their processing.
+
 ## GDPR Alignment
+
+The system explicitly relates to five specific articles of the GDPR, articulated in
+the following table.
+
+| GDPR Article | Principle | Implementation in Privify |
+|--------------|-----------|---------------------------|
+| Art. 5.1.c | Minimization | Stateless pipeline, no PII retention, redacted output replaces input |
+| Art. 5.2 | Accountability | Public ADRs, test suite, continuous integration, open-source code |
+| Art. 25 | Privacy by Design | Privacy as default architectural requirement, not opt-in |
+| Art. 32 | Security of Processing | SHA-256 integrity verification of models, dependency pinning, CI security checks |
+| Art. 35 | DPIA | Automated detection system: the controller must assess whether a DPIA is required for the specific deployment |
+
+Alignment with Art. 32 (security of processing) is particularly relevant for a
+software system: the system must guarantee that the models used are intact and
+untampered. Privify publishes both models (`face-detector-v0.1` and
+`face-detector-v0.2`) as GitHub Releases with verified SHA-256, and the `Detector`
+wrapper verifies the hash on download to ensure that the weights have not been
+altered in transit or storage.
+
+Art. 35 (Data Protection Impact Assessment) deserves a separate note: Privify is a
+tool, not an autonomous decision-making system, but the fact that it operates
+automatically on biometric data (even if not for identification purposes) may
+require a DPIA based on the specific deployment context, particularly for
+large-scale deployments or sensitive contexts (workplaces, public-facing
+businesses). The responsibility for the DPIA remains with the data controller, and
+Privify provides the technical documentation necessary to support it.
 
 ## Dataset and Model Licensing
 
+The commercial use of the system requires attention to the licensing chain of its
+components, which is heterogeneous and with distinct operational constraints.
+
+The `face-detector-v0.1` model is fine-tuned on Mohamed Traore's Face Detection
+dataset, distributed on Roboflow Universe with Creative Commons Attribution 4.0
+(CC BY 4.0) license. This license permits derivative commercial use provided the
+original attribution is maintained. The `face-detector-v0.2` model is instead
+fine-tuned on a subset of WIDER FACE, distributed with Creative Commons
+Attribution-NonCommercial-NoDerivatives 4.0 (CC BY-NC-ND 4.0) license: the
+commercial use of the original dataset, and consequently of models derived from it
+without further legal validation, is restricted to academic research only.
+
+On the model side, both Privify checkpoints inherit the AGPL-3.0 license from
+Ultralytics YOLOv8, which imposes copyleft on all code that incorporates the model:
+commercial use of the complete system without the obligation of source code
+disclosure requires the purchase of a separate commercial license from Ultralytics.
+For an SME deployment, this choice must be evaluated case by case: internal corporate
+use of the system does not require public disclosure, but the integration of the
+code into commercial products distributed to third-party clients does.
+
+The operational consequence for the IT consultant is that the commercially immediate
+version of Privify is the one based on `face-detector-v0.1` (Mohamed Traore CC BY 4.0
+dataset) for face detector fine-tuning, with or without the fallback to `yolov8n.pt`
+COCO for person detection (which also inherits AGPL-3.0). The `face-detector-v0.2`
+model, while technically superior on the CCTV deployment target, is confined to
+research use cases or internal iteration without publication of the derivative model.
+This is a trade-off of which the data controller must be aware in selecting the
+operational modality.
+
 ## Responsible Deployment Considerations
+
+The system, even when correctly configured and licensed, presents three categories
+of residual risk that the data controller must manage outside the technical
+perimeter of Privify.
+
+The first risk is the partial reversibility of Gaussian blur. Published research
+(McPherson, Shokri, Shmatikov, 2016; more recent: Maximov et al., 2020 on deep
+learning based deblurring) has demonstrated that blur techniques applied to face
+images can be partially inverted through neural networks trained on blurred/clean
+image pairs. The risk is a function of the blur kernel size, the frame resolution,
+and the availability of reference images of the target subject. Privify mitigates
+this risk by offering a configurable blur kernel (default 51 pixels) and the
+`person_full` mode for high-sensitivity scenarios, but does not eliminate it. The
+system should therefore not be considered an absolute anonymization mechanism in the
+GDPR sense (Recital 26), but a reasonable visual redaction measure proportional to
+the risk.
+
+The second risk is dataset bias, which manifests as differential system performance
+across subject sub-populations. Both datasets used (Mohamed Traore and WIDER FACE)
+have demographic distributions that are not perfectly balanced with respect to the
+Italian population targeted by SME deployments. The operational risk is that the
+system may have systematically lower recall on certain combinations of ethnicity,
+age, or physical characteristics, leaving these subjects less protected than others.
+The mitigation of this risk requires the integration of additional datasets
+representative of the Italian deployment context, an activity documented in the
+roadmap of §4.3.
+
+The third risk is transparency toward the subjects being filmed. The GDPR
+(Art. 13-14) requires that subjects involved in the processing be informed of the
+existence and purpose of the system. In the CCTV context, this translates to the
+obligation of visible signage at surveilled areas, with indication of the purpose of
+processing, retention policy, and the subject's rights (Art. 15-22). Privify does not
+manage this aspect directly, being a backend tool; responsibility for the correct
+notification remains with the data controller. The system can however facilitate
+compliance by providing audit logs of the processing performed, useful in case of
+access requests from subjects (Art. 15).
+
+A final recommendation: the deployment of Privify in operational contexts requires a
+case-by-case evaluation of the sensitivity level of the processing and the fit of the
+system to the context. The system is designed to support the data controller in their
+compliance choices, not to replace them. The responsibility for proper risk
+assessment, selection of the appropriate operational modality, and notification to
+subjects remains with the controller.
 
 # Conclusions
 
