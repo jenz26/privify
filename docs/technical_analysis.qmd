@@ -421,15 +421,115 @@ defense are discussed in §4.
 
 # Failure Analysis
 
-> TODO: domain shift documentato, root cause analysis, mitigation
-> roadmap. ~1.5 pagine. SEZIONE FORTE — qui c'è il vero contributo
-> narrativo del progetto.
+This section documents the qualitative failure observed in the first iteration of
+the system (v0.1), the diagnosis of the underlying phenomenon, and the responses
+adopted to mitigate it. The case constitutes a concrete example of the gap between
+in-distribution performance metrics and qualitative deployment behavior, a known
+failure mode category in applied transfer learning.
 
 ## Domain Shift on Street-Level CCTV
 
+The `face-detector-v0.1` model, fine-tuned on 1558 images of Mohamed Traore's Face
+Detection dataset, obtained excellent validation metrics on its own test split:
+precision 0.940, recall 0.869, mAP@50 0.937. Based on these numbers, the model
+would be considered production-ready for the declared task (single-class face
+detection).
+
+However, the first qualitative execution of the pipeline on the deployment target
+(street-level CCTV video, `samples/input.mp4`) revealed substantially different
+behavior than expected. On a representative frame containing 17 visible people, the
+detector identified only 2 faces. The pattern was confirmed as systematic across
+all frames of the video: detected faces are predominantly those in close-up frontal
+positions, while subjects at medium distance, in profile, partially turned away, or
+simply smaller in the frame are not detected.
+
+Quantification of the qualitative observation was performed via a dedicated
+out-of-distribution evaluation (notebook `ood_evaluation.ipynb`), described in §3.3:
+on 10 uniformly sampled frames and 195 manually annotated people, the mean recall of
+model v0.1 is 17.2% (with range 5%-44% across frames), versus a mean recall of 80.4%
+for a generic person detector (`yolov8n` COCO pre-trained, class `person`) on the
+same target. The 63 percentage point gap between a specialized fine-tuned model and a
+generic baseline constitutes the empirical symptom of the problem.
+
 ## Root Cause Analysis
 
+The proximate cause of the failure is a distributional misalignment between the
+training dataset and the deployment target. The Mohamed Traore dataset is composed
+predominantly of close-up frontal face images, with typical facial area exceeding 5%
+of the image. The CCTV deployment target has opposite characteristics: faces
+typically below 1% of the image area, frequently non-frontal, in variable poses and
+lighting. A model that learns only from large frontal faces does not develop the
+feature representations necessary to detect small non-frontal faces, regardless of
+the quality of in-distribution validation metrics.
+
+The root cause, at a higher level, is an initial methodological choice driven by the
+"ready-to-use" criterion rather than by distributional coherence: the Mohamed Traore
+dataset was selected because it was available in native YOLOv8 format on Roboflow
+Universe, downloadable without preliminary data engineering, and trainable in 20
+minutes on Colab T4 free tier. These are legitimate operational criteria for an MVP,
+but preventive verification of the dataset's representativeness against the declared
+deployment target would have identified the divergence prior to training.
+
+The observed phenomenon is a textbook case of the concept known as the
+metric-vs-behavior gap in applied machine learning: optimizing a model on a metric
+computed over a training distribution does not guarantee useful behavior on a
+significantly different deployment distribution. The informal formulation of this
+principle is the one Goodhart's law takes on in ML applications: a metric that
+becomes the target (validation mAP@50) ceases to be a good measure of behavior on
+the real task (recall on deployment target). The case of Privify v0.1 is an isolated
+and quantified empirical demonstration of this principle on a real system with
+verifiable metrics.
+
 ## Mitigation Roadmap
+
+Two independent responses to the failure were adopted, along different axes.
+
+The first response is architectural and immediate. Recognizing that a face detector
+has a structural limit in deployment targets where faces are not visible or are too
+small to be detected with confidence, the pipeline was extended with two alternative
+modalities based on a generic person detector (`yolov8n.pt` COCO pre-trained,
+filtered to the `person` class). In the `person_upper` mode, the pipeline detects
+whole persons and applies blur to the upper region of the bounding box as a
+head-shoulder proxy; in the `person_full` mode, it blurs the entire person bounding
+box. These modalities are documented in §2.4 and in the ADR of 2026-06-26 "Hybrid
+detection strategy: face vs person modes". Empirically, the person-detection-based
+modality has 80.4% recall on the deployment target, drastically reducing leakage
+compared to the original face detector.
+
+The second response is algorithmic and iterative. The diagnosis that the dataset
+choice was the cause of the failure was experimentally validated through re-training
+the face detector on a dataset distributionally coherent with the deployment target.
+The selected dataset (`face-detection-dataset-v0.2`) is a 3000-image subset of WIDER
+FACE biased toward the "hard" bin (face area below 0.5% of the image), prepared via a
+deterministic script documented in `tools/prepare_wider_face.py`. The experiment was
+designed as a single-variable test: same base model, same training function, same
+hyperparameters, with the dataset as the only difference.
+
+The result (§3.3) confirmed the diagnosis. The `face-detector-v0.2` model reaches a
+mean recall of 59.5% on the deployment target, against the 17.2% of the v0.1 model.
+The +42.4 percentage point improvement is attributable exclusively to the change in
+dataset distribution, in the absence of other modified variables. This result
+constitutes an isolated empirical proof that, in the transfer learning regime with
+pre-trained models, the distributional coherence of the fine-tuning dataset dominates
+over hyperparameter choices.
+
+The residual gap of -20.9 percentage points between the v0.2 model (59.5%) and the
+COCO person baseline (80.4%) is not eliminable through further face-specific
+fine-tuning: it represents the intrinsic limit of the face detection task on scenes
+where faces are partially visible or absent (subjects facing away, partially
+occluded, cropped at the frame edge). The operational response to this structural
+limit is the availability of the `person_*` modality for deployment scenarios where
+privacy coverage prevails over information preservation, in line with the GDPR
+principle of data minimization (Art. 5.1.c).
+
+The future roadmap includes two improvement directions. The first is further
+expansion of the face detector training dataset, including images of real urban
+scenes with annotations of small faces (e.g., integration of CrowdHuman, MAFA, or
+CCTV-specific datasets collected under NDA with pilot clients). The second is the
+introduction of an ensembling mechanism between the face detector and the person
+detector in the same modality, dynamically selecting the anonymization strategy based
+on subject scale and pose. Both directions are out of scope for v1.0 but are
+documented for subsequent iterations.
 
 # Ethical Considerations
 
