@@ -20,6 +20,11 @@ Thumbs.db
 
 # Project artifacts
 data/
+# WIDER FACE v0.2 subset: heavy images/labels are regenerable from
+# tools/prepare_wider_face.py and distributed via a GitHub Release. Only the
+# data.yaml config and the small _preview/ PNGs are versioned.
+datasets/wider_face_subset_v0.2/images/
+datasets/wider_face_subset_v0.2/labels/
 models/*.pt
 models/*.pth
 # Stray model weights (should be downloaded into models/ instead)
