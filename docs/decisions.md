@@ -381,3 +381,35 @@ detection has a ceiling on scenes where faces are partially visible or absent.
 This is addressed by the hybrid detection strategy (`person_upper` and
 `person_full` modes; ADR 2026-06-26 "Hybrid detection strategy: face vs person
 modes").
+
+## 2026-06-26 — Quarto project root at repository root for cross-directory figures
+
+**Context:** The Technical Analysis Document (`docs/technical_analysis.qmd`)
+renders to PDF through Quarto's Typst backend and embeds evaluation figures that
+live in `evaluation/figures/` (training curves, per-frame recall, qualitative
+comparison). Typst, for security, refuses to read any file outside its project
+root, which Quarto sets to the directory containing `_quarto.yml`. With that file
+in `docs/`, the `../evaluation/figures/...` image paths pointed above the root and
+compilation failed with "cannot read file outside of project root".
+
+**Decision:** Move `_quarto.yml` from `docs/` to the repository root and scope its
+`render:` list to the single document. The project root now sits above both
+`docs/` and `evaluation/`, so the literal `../evaluation/figures/...` paths resolve
+and the figures embed. `output-dir: .` keeps the rendered PDF in place at
+`docs/technical_analysis.pdf`.
+
+**Alternatives considered:**
+- *Copy the figures into `docs/figures/`:* Rejected — duplicates four PNGs that are
+  already versioned deliverables in `evaluation/figures/`, creating a drift risk
+  every time the evaluation notebooks regenerate them.
+- *Symlink / junction inside `docs/`:* Rejected — symlinks are fragile across
+  platforms (Windows junction vs POSIX symlink, `core.symlinks`) on a public
+  repository.
+
+**Consequences:**
+- (+) Single source of truth for figures; the TAD references the canonical
+  `evaluation/figures/` assets directly.
+- (+) `quarto render docs/technical_analysis.qmd` works unchanged and the PDF stays
+  at `docs/technical_analysis.pdf`.
+- (-) Quarto build artifacts (`.quarto/`, `_freeze/`) are now created at the
+  repository root; `.gitignore` updated accordingly.
