@@ -292,3 +292,68 @@ cases.
   street-level, but may be too conservative for other scenarios).
 - (-) The `person_*` modes require downloading `yolov8n.pt` on first use
   (~6 MB, cached in `models/` via the `fix(eval)` commit `7f6ef67`).
+
+## 2026-06-26 — Re-train face detector (v0.2) on a small-face-biased WIDER FACE subset
+
+**Status:** Accepted
+
+**Context:** The OOD evaluation (commit `999a4ee`) showed `face-detector-v0.1`
+recall of 17.2% on the CCTV deployment target, against 80.4% for the COCO
+`person` baseline. The hybrid detection strategy (ADR 2026-06-26) addresses the
+deployment side. This ADR addresses the *training-data* side: v0.1 was
+fine-tuned on Mohamed Traore's Roboflow dataset, which is dominated by
+**close-up frontal portraits** (large faces), whereas the CCTV target is
+dominated by **small, distant faces**. The training distribution does not match
+the deployment distribution. We want to test empirically whether a
+distribution-matched dataset improves recall, as an iterative "choose the right
+dataset" loop that *complements* (does not replace) the hybrid strategy.
+
+**Decision:** Build `face-detector-v0.2` on a ~3 000-image subset of the
+**official WIDER FACE** training set, sub-sampled to be biased towards small
+faces, via a dedicated, unit-tested script `tools/prepare_wider_face.py`:
+
+- *Source:* the official WIDER FACE archives (HuggingFace mirror,
+  urllib-friendly), parsed from their native `*_bbx_gt.txt` format — not the
+  Roboflow re-export used for v0.1, whose easy/portrait bias is exactly what we
+  want to move away from.
+- *Scale bins (WIDER convention):* `easy` (face area > 1 %), `medium`
+  (0.5–1 %), `hard` (≤ 0.5 %) of the image area.
+- *Biased sub-sampling:* keep only images with ≥ 1 medium/hard face (drop
+  all-easy close-ups, already covered by v0.1); draw ~67 % medium-leaning and
+  ~33 % hard-leaning images via deterministic weighted sampling without
+  replacement (Efraimidis-Spirakis, `seed=42`).
+- *Format & split:* convert to YOLOv8 labels (single class `face`), with a
+  deterministic 80/10/10 train/val/test split.
+- *Distribution:* the subset and weights are published as GitHub Releases
+  (`face-detection-dataset-v0.2`, `face-detector-v0.2`), consistent with the
+  v0.1 / dataset-v0.2 pattern; heavy `images/`+`labels/` are gitignored.
+- *Scientific control:* training reuses the existing `train_face_detector`
+  unchanged — same `yolov8n.pt`, 50 epochs, imgsz 640, batch 16 and the **same
+  (unspecified, Ultralytics-default) optimizer/lr** as v0.1 — so the only
+  variable that changes between v0.1 and v0.2 is the dataset.
+
+**Alternatives considered:**
+- *Force `optimizer=SGD, lr=0.01` for v0.2:* Rejected. v0.1 used the Ultralytics
+  default (`optimizer='auto'`, which selects AdamW for a run of this size), so
+  pinning SGD would introduce a second confounding variable and break the
+  single-variable comparison that justifies this experiment.
+- *Continue with Roboflow / a larger Roboflow export:* Rejected because the
+  Roboflow dataset's scale distribution is the problem under study; using the
+  upstream WIDER FACE lets us control the easy/medium/hard mix directly.
+- *Full WIDER FACE (~12 880 train images):* Rejected for fast iteration on a
+  free Colab T4; the subset is a linear scale-up (raise `--target`) and the
+  larger run is documented as Future Work.
+- *Manual / Roboflow re-labelling instead of parsing the native format:*
+  Rejected — parsing `*_bbx_gt.txt` is cheap, keeps the pipeline dependency-free
+  (no Roboflow account in the loop), and gives full control over the scale-based
+  filtering that is the whole point of the experiment.
+
+**Consequences:**
+- (+) The v0.1-vs-v0.2 comparison isolates a single variable (training-data
+  distribution), making the result defensible at the oral exam.
+- (+) `tools/prepare_wider_face.py` is reproducible (`seed=42`) and unit-tested
+  without GPU or dataset download.
+- (-) Requires a ~1.4 GB one-time WIDER FACE download for dataset preparation
+  (local, not in CI).
+- (-) The exact sub-sampling weights are a judgement call; they are documented
+  in the script and fixed by the seed for reproducibility.
