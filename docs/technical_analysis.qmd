@@ -68,7 +68,7 @@ qualifies as anonymization in the strict GDPR sense (Recital 26) depends on
 contextual parameters such as blur intensity, frame resolution, and the presence
 of other identifiers in the scene. Recent research has demonstrated that
 Gaussian blur can be partially attacked through deblurring and re-identification
-techniques [citation placeholder: gaussian blur deanonymization paper]; the
+techniques [7][8]; the
 system is therefore designed to allow the data controller to calibrate
 parameters in an informed manner and to document the technical choice adopted.
 The system combines a YOLOv8n detector fine-tuned on a single-class face dataset
@@ -81,9 +81,11 @@ server without dedicated GPU, process archived video in times acceptable for
 batch use, and produce redacted output that the data controller can legitimately
 retain or share. The extension of the detector to the license plate class, part
 of Privify's original positioning for the Italian CCTV context (drive-through,
-private parking, commercial entrances), is planned as future work for v0.2.
+private parking, commercial entrances), is planned as future work for the v1.0
+release.
 
-This report documents the development of Privify in its first iteration (v0.1),
+This report documents the development of Privify across its first two iterations
+(v0.1 and v0.2),
 from the initial architectural choice through the detector fine-tuning and the
 empirical evaluation on test videos. The main contribution is not algorithmic
 novelty: YOLOv8 and Gaussian blur are established techniques. It is instead the
@@ -203,7 +205,7 @@ the output video usable for non-identifying analysis (counts, flows, aggregate
 behaviors). The second is the absence of external dependencies beyond OpenCV,
 simplifying deployment. The third is documentary: compared to pixelation, whose
 reversibility under controlled conditions is documented in the literature
-(McPherson, Shokri, Shmatikov, 2016), Gaussian blur does not offer guarantees of
+[7], Gaussian blur does not offer guarantees of
 irreversible anonymization in an absolute sense. The system is therefore
 designed to allow the data controller to calibrate parameters in an informed
 manner.
@@ -377,6 +379,19 @@ over-detection. This metric is semantically aligned with the GDPR objective of
 the system: "out of N identifiable people in the frame, how many have we covered
 with blur?". The raw counts are available in the `ood_evaluation.ipynb` notebook
 for detailed inspection.
+
+Two methodological caveats apply to this evaluation. First, the sample size is
+intentionally diagnostic rather than statistically representative: 10 frames from
+a single street-level CCTV video, manually annotated, are sufficient to establish
+qualitative evidence of domain shift but do not constitute a benchmark in the
+formal sense. A larger evaluation across multiple deployment contexts (different
+camera angles, illumination conditions, urban densities) is part of the future
+work outlined in §4.3. Second, the count-based recall metric measures coverage
+(proportion of subjects detected) but does not measure detection accuracy (IoU
+between predicted and ground-truth bounding boxes) or false positive rate. This
+choice is deliberately aligned with the GDPR objective of the system—every
+undetected subject is a privacy leak—but should be understood as a
+coverage-oriented diagnostic, not a full object-detection benchmark.
 
 The following table summarizes the results of the three detectors on the 10 test
 frames:
@@ -555,11 +570,12 @@ images. The minimization principle (Art. 5.1.c) is structurally applied: the sys
 can only process the data strictly necessary for the processing itself, and retains
 none of it beyond the processing duration.
 
-The second is the pixel-level irreversibility of the blur: the blurred region
-replaces the original pixels in the output frame, without preserving recoverable
-information about the original pixels in the output format. The output video is
-therefore a distinct datum from the input video, and the input video can be deleted
-after processing without compromising the usability of the output. This choice is
+The second is the irrecoverability of original pixels in the output file: the
+blurred region replaces the original pixels in the output frame, without
+preserving recoverable information about the original pixels in the output file
+format. The output video is therefore a distinct datum from the input video, and
+the input video can be deleted after processing without compromising the
+usability of the output. This choice is
 motivated both by the minimization principle and by the consideration that the
 system should not facilitate the retention of personal data beyond the stated
 purpose.
@@ -593,7 +609,8 @@ altered in transit or storage.
 
 Art. 35 (Data Protection Impact Assessment) deserves a separate note: Privify is a
 tool, not an autonomous decision-making system, but the fact that it operates
-automatically on biometric data (even if not for identification purposes) may
+automatically on images of identifiable persons (which constitute personal data,
+even outside the special-category regime of Article 9) may
 require a DPIA based on the specific deployment context, particularly for
 large-scale deployments or sensitive contexts (workplaces, public-facing
 businesses). The responsibility for the DPIA remains with the data controller, and
@@ -637,8 +654,7 @@ of residual risk that the data controller must manage outside the technical
 perimeter of Privify.
 
 The first risk is the partial reversibility of Gaussian blur. Published research
-(McPherson, Shokri, Shmatikov, 2016; more recent: Maximov et al., 2020 on deep
-learning based deblurring) has demonstrated that blur techniques applied to face
+[7][8] has demonstrated that blur techniques applied to face
 images can be partially inverted through neural networks trained on blurred/clean
 image pairs. The risk is a function of the blur kernel size, the frame resolution,
 and the availability of reference images of the target subject. Privify mitigates
