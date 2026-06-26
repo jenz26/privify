@@ -295,7 +295,7 @@ cases.
 
 ## 2026-06-26 — Re-train face detector (v0.2) on a small-face-biased WIDER FACE subset
 
-**Status:** Accepted
+**Status:** Accepted — validated (outcome measured, see Outcome below)
 
 **Context:** The OOD evaluation (commit `999a4ee`) showed `face-detector-v0.1`
 recall of 17.2% on the CCTV deployment target, against 80.4% for the COCO
@@ -357,3 +357,27 @@ faces, via a dedicated, unit-tested script `tools/prepare_wider_face.py`:
   (local, not in CI).
 - (-) The exact sub-sampling weights are a judgement call; they are documented
   in the script and fixed by the seed for reproducibility.
+
+**Outcome:**
+
+Validation set (WIDER FACE subset, 300 images, 6 559 face instances):
+- Precision: 0.811
+- Recall: 0.527
+- mAP@50: 0.612
+- mAP@50-95: 0.321
+
+Out-of-distribution evaluation (10 CCTV street-level frames, manual ground
+truth: 195 persons total):
+- `face-detector-v0.1`: 17.2% mean recall (range 5.0%-44.4%)
+- `face-detector-v0.2`: 59.5% mean recall (range 34.8%-73.7%) [+42.4 pp vs v0.1]
+- COCO `person` baseline: 80.4% mean recall (range 65.2%-89.5%)
+
+The +42.4 pp improvement on the deployment target quantifies the impact of
+dataset distribution alignment, isolated as a single variable in the
+experiment (training config identical to v0.1).
+
+The remaining -20.9 pp gap to the COCO `person` baseline is structural: face
+detection has a ceiling on scenes where faces are partially visible or absent.
+This is addressed by the hybrid detection strategy (`person_upper` and
+`person_full` modes; ADR 2026-06-26 "Hybrid detection strategy: face vs person
+modes").
