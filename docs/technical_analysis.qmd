@@ -677,10 +677,83 @@ subjects remains with the controller.
 
 # Conclusions
 
-> TODO: ricap, lessons learned, future work. ~0.5 pagine.
+Privify demonstrates that a GDPR-compliant video anonymization system for Italian
+SMEs can be built with established techniques (YOLOv8 fine-tuning + Gaussian blur on
+OpenCV), released as a self-hostable open-source project, and accompanied by the
+engineering rigor required for professional deployment (automated testing, continuous
+integration, explicit versioning of models and datasets, tracked architectural
+decisions). The pipeline supports three configurable anonymization modalities based on
+the deployment context, with the fine-tuned face detector for close-range scenarios
+and the fallback to a generic person detector for street-level CCTV scenarios where the
+face is often too small to be detected with confidence.
+
+The main methodological contribution of the project lies in the explicit documentation
+of an empirical failure and its iterative resolution. The first version of the face
+detector (v0.1), despite obtaining excellent metrics on its own validation set
+(mAP@50 = 0.937), showed 17.2% recall on the actual deployment target, versus 80.4%
+from a generic person detector. The diagnosis of the failure as domain shift between
+the training dataset and the deployment distribution was experimentally validated
+through a single-variable re-training: moving from the Mohamed Traore dataset (frontal
+close-ups) to a small-face-biased subset of WIDER FACE, recall on the target rose to
+59.5% (+42.4 percentage points), with all other hyperparameters unchanged. This
+constitutes an isolated empirical proof, on the actual system, of the principle known
+as the metric-vs-behavior gap in applied transfer learning.
+
+Three generalizable lessons emerge from the project. The first is the confirmation
+that, in the regime of fine-tuning pre-trained models, the distributional coherence of
+the dataset dominates over hyperparameter choice: no optimization of learning rate,
+optimizer, or schedule could have recovered the 42 percentage points gained from the
+dataset change alone. The second is that architectural mitigation (the hybrid pipeline)
+and algorithmic mitigation (the re-training) are not mutually exclusive but
+complementary: the former covers the structural limit of the face detection task on
+CCTV scenes, the latter reduces the gap within the same task. The third, of process
+nature, is that explicitly documenting failures as didactic units with root cause
+analysis and mitigation roadmap produces more useful technical documentation, both
+internally and for external discourse, than success-only case studies do.
+
+The project roadmap envisions three development directions for the v1.0 release. The
+first is the extension of the system to license plate detection and blurring, part of
+Privify's original positioning for the Italian CCTV context (drive-through, private
+parking, commercial entrances) and cited in §1. The second is the integration of
+training datasets representative of the Italian demographic context, mitigating the
+residual bias discussed in §5.4. The third is deployment optimization for edge
+computing via model export in `ONNX` or `TensorRT` format, enabling execution on even
+more affordable hardware (Raspberry Pi 5, NVIDIA Jetson Nano) for on-premise SME
+deployment scenarios.
+
+Privify remains open to external contributions on the GitHub repository, and the
+datasets and models are publicly available for audit and reproducibility of the
+measurements presented in this report.
 
 # References
 
-> TODO: bibliografia minima (3-6 references). Citare YOLOv8 paper,
-> McPherson 2016 sulla reversibilità di pixelation, GDPR text,
-> Roboflow dataset attribution, eventuali altri paper letti.
+[1] General Data Protection Regulation (GDPR). Regulation (EU) 2016/679 of the European
+Parliament and of the Council of 27 April 2016. Official Journal of the European Union,
+L 119/1. Available at: <https://eur-lex.europa.eu/eli/reg/2016/679/oj>
+
+[2] European Data Protection Board (EDPB). Guidelines 3/2019 on processing of personal
+data through video devices. Version 2.0, adopted 29 January 2020. Available at:
+<https://www.edpb.europa.eu/our-work-tools/our-documents/guidelines/guidelines-32019-processing-personal-data-through-video_en>
+
+[3] Jocher, G., Chaurasia, A., Qiu, J. (2023). Ultralytics YOLOv8. Software, version
+8.3.x. GitHub repository: <https://github.com/ultralytics/ultralytics>. AGPL-3.0
+License.
+
+[4] Yang, S., Luo, P., Loy, C. C., Tang, X. (2016). WIDER FACE: A Face Detection
+Benchmark. Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition
+(CVPR), pp. 5525-5533. Dataset available at: <http://shuoyang1213.me/WIDERFACE/>
+
+[5] Traore, M. (2022). Face Detection Dataset. Roboflow Universe. Available at:
+<https://universe.roboflow.com/mohamed-traore-2ekkp/face-detection-mik1i>. Licensed
+under CC BY 4.0.
+
+[6] Bradski, G. (2000). The OpenCV Library. Dr. Dobb's Journal of Software Tools.
+Software available at: <https://opencv.org/>. Apache 2.0 License.
+
+[7] McPherson, R., Shokri, R., Shmatikov, V. (2016). Defeating Image Obfuscation with
+Deep Learning. arXiv preprint arXiv:1609.00408. Available at:
+<https://arxiv.org/abs/1609.00408>
+
+[8] Maximov, M., Elezi, I., Leal-Taixé, L. (2020). CIAGAN: Conditional Identity
+Anonymization Generative Adversarial Networks. Proceedings of the IEEE/CVF Conference on
+Computer Vision and Pattern Recognition (CVPR), pp. 5447-5456.
