@@ -303,14 +303,121 @@ training curves are published as GitHub Releases for reproducibility.
 
 # Experimental Results
 
-> TODO: metriche del modello fine-tuned, training curves, qualitative
-> evaluation, comparison vs COCO baseline. ~2 pagine.
+This section reports the system's quantitative and qualitative measurements,
+organized into three perspectives: the in-distribution validation metrics of the
+fine-tuned models, the training convergence behavior, and finally the
+out-of-distribution evaluation on the CCTV deployment target, which constitutes
+the central empirical measurement of the project.
 
-## Quantitative Metrics
+## Quantitative Metrics on Validation Sets
+
+The two models `face-detector-v0.1` and `face-detector-v0.2` were each evaluated
+on their own validation split, produced from the corresponding training dataset
+with a deterministic 80/10/10 split. The following table compares standard
+object detection metrics on the two sets.
+
+| Metric | v0.1 (Mohamed Traore val, 156 images) | v0.2 (WIDER FACE val, 300 images) |
+|--------|---------------------------------------|-----------------------------------|
+| Precision | 0.940 | 0.811 |
+| Recall | 0.869 | 0.527 |
+| mAP@50 | 0.937 | 0.612 |
+| mAP@50-95 | 0.682 | 0.321 |
+
+The difference between the two columns reflects the different difficulty of the
+respective validation sets, not a degradation of the model. The v0.1 validation
+set contains frontal close-up faces (typical facial area above 5% of the image),
+a distribution on which a general-purpose detector like YOLOv8n easily reaches
+high metrics. The v0.2 validation set, in contrast, contains 6559 face
+annotations on 300 images, with 94.9% of faces in the "hard" bin (area below
+0.5% of the image): this is an inherently difficult scenario, where even SOTA
+face detection models obtain values significantly lower than those recorded on
+"easy" benchmarks.
+
+The metric relevant for evaluating the project is therefore not the direct
+comparison between these two columns, but the behavior of the two models on the
+CCTV deployment target, presented in §3.3. The in-distribution validation
+metrics are reported here as a baseline for completeness, not as an objective of
+the system.
 
 ## Training Convergence
 
-## Qualitative Evaluation
+The training of `face-detector-v0.2` was executed on Google Colab with T4 GPU
+runtime for 50 epochs, with a total duration of 45 minutes. The loss curves
+(train and validation, decomposed into box, cls, and dfl components) show clean
+convergence: monotonic decrease in the first 30 epochs, plateau in the remaining
+20. Train loss and validation loss remain aligned throughout the training,
+indicating absence of significant overfitting.
+
+![Training and validation loss curves (box, cls, and dfl components) for `face-detector-v0.2` over 50 epochs of fine-tuning.](../evaluation/figures/loss_curves.png){width=80%}
+
+The validation metrics (mAP@50 and mAP@50-95) follow a mirrored pattern: rapid
+growth in the first 20 epochs, stabilization around the final values (0.612 and
+0.321) in the last 15 epochs. The clear plateau from epoch 30 onwards indicates
+that the training could have been stopped early with lower computational cost
+and practically equivalent metrics.
+
+![Validation metrics (mAP@50 and mAP@50-95) for `face-detector-v0.2` over 50 epochs of fine-tuning.](../evaluation/figures/metrics_curves.png){width=80%}
+
+The training of `face-detector-v0.1` follows a qualitatively analogous pattern,
+with higher metrics on its respective validation set for the reasons discussed
+in §3.1. The training plots of v0.1 are published as assets of the
+`face-detector-v0.1` GitHub Release.
+
+## Out-of-Distribution Recall on CCTV Deployment Target
+
+The central evaluation of this project measures the behavior of the detectors on
+the declared deployment target: street-level CCTV video. The test video is a
+public urban scene with subject density typical of the deployment (15-23 people
+per frame), and the ground truth was manually annotated by the author on 10
+frames extracted uniformly from the video, for a total of 195 visible people.
+
+The adopted metric is count-based recall (recall = min(detections, ground_truth)
+/ ground_truth), clamped to [0, 1] to avoid values above unity in case of
+over-detection. This metric is semantically aligned with the GDPR objective of
+the system: "out of N identifiable people in the frame, how many have we covered
+with blur?". The raw counts are available in the `ood_evaluation.ipynb` notebook
+for detailed inspection.
+
+The following table summarizes the results of the three detectors on the 10 test
+frames:
+
+| Model | Mean recall | Std | Min | Max |
+|-------|-------------|-----|-----|-----|
+| `face-detector-v0.1` | 17.2% | 0.122 | 5.0% | 44.4% |
+| `face-detector-v0.2` | 59.5% | 0.116 | 34.8% | 73.7% |
+| COCO person baseline | 80.4% | 0.069 | 65.2% | 89.5% |
+
+![Per-frame count-based recall of the three detectors on the 10 annotated CCTV test frames.](../evaluation/figures/recall_per_frame.png){width=100%}
+
+The result is clear-cut and quantifies two distinct phenomena. The first is the
+improvement obtained from the dataset change: by moving from training on frontal
+close-up faces (Mohamed Traore) to a WIDER FACE subset biased toward small
+faces, recall on the deployment target increases by +42.4 percentage points
+(from 17.2% to 59.5%). Since the training hyperparameters are identical between
+the two runs (see §2.5), this improvement is attributable exclusively to the
+change in dataset distribution: it is an empirical single-variable proof that the
+distributional coherence between training and deployment dominates over
+hyperparameter choices in transfer learning regimes.
+
+The second phenomenon is the residual gap of -20.9 percentage points between
+`face-detector-v0.2` (59.5%) and the COCO person baseline (80.4%). This gap is
+not eliminable through further face-specific fine-tuning: it represents the
+structural limit of a frontal face detector on scenes where faces are partially
+visible or absent (people facing away, partially occluded, cropped at the frame
+edge). For this category of subjects, a person detector is structurally more
+suitable, which is the reason the pipeline includes the `person_upper` and
+`person_full` modes (§2.4).
+
+The qualitative comparison reported in the following figure shows the behavior of
+the three detectors on the same frame: the v0.1 face detector detects 2 faces out
+of 17 people, the v0.2 face detector detects 13 (dramatic improvement, but still
+missing 4 subjects without visible face), and the COCO person detector detects 15
+(higher recall, adequate operational coverage).
+
+![Qualitative comparison of the three detectors on the same CCTV frame: face-detector-v0.1, face-detector-v0.2, and the COCO person baseline.](../evaluation/figures/side_by_side_examples.png){width=100%}
+
+The implications of these results for the system design and for the project's
+defense are discussed in §4.
 
 # Failure Analysis
 
