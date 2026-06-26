@@ -6,14 +6,19 @@ project:
 
 format:
   typst:
+    template-partials:
+      - docs/typst-template.typ
     papersize: a4
-    fontsize: 10pt
+    fontsize: 11pt
     margin:
-      x: 2.5cm
-      y: 2.8cm
+      top: 2.7cm
+      bottom: 2.6cm
+      left: 2.6cm
+      right: 2.6cm
     mainfont: "New Computer Modern"
-    sansfont: "New Computer Modern Sans"
+    sansfont: "DejaVu Sans"
     monofont: "DejaVu Sans Mono"
+    linestretch: 1.05
     toc: true
     toc-depth: 2
     toc-title: "Contents"

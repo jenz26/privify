@@ -413,3 +413,49 @@ and the figures embed. `output-dir: .` keeps the rendered PDF in place at
   at `docs/technical_analysis.pdf`.
 - (-) Quarto build artifacts (`.quarto/`, `_freeze/`) are now created at the
   repository root; `.gitignore` updated accordingly.
+
+## 2026-06-27 — Portfolio-grade Typst template via partial override
+
+**Context:** The TAD is a public, oral-exam-defended deliverable, so its visual
+presentation matters. A LaTeX reference (`Privify_TAD_full.tex`) defined the
+target aesthetic: a branded cover, a dedicated abstract page, an Epicode colour
+palette (magenta/purple/navy), running headers/footers, bordered code listings,
+and booktabs tables. The build must stay on Quarto + Typst and the content of
+`docs/technical_analysis.qmd` must remain untouched (styling only).
+
+**Decision:** Override Quarto's `typst-template.typ` partial through
+`format.typst.template-partials` in `_quarto.yml`, in a new `docs/typst-template.typ`.
+The custom `#let article(...)` keeps the exact signature of Quarto's default
+partial, so it stays drop-in compatible with the unmodified default
+`typst-show.typ` (no argument-mismatch errors and no need to maintain the
+metadata mapping). The template defines the brand palette, the cover/abstract/TOC
+pages, section/code/table/caption styling, and a running header that queries the
+current level-1 heading. Quarto's `Skylighting(...)` code helper is redefined in
+the same file (concatenated after Quarto's `definitions.typ`, so it shadows the
+original) to give code blocks the branded background and a thin border.
+
+**Alternatives considered:**
+- *A single monolithic `template:` file (LaTeX-style):* Rejected — for Typst,
+  Quarto's documented and robust customization path is partial overrides, not a
+  full template; a monolithic template would have to reproduce all of Quarto's
+  Typst plumbing (figures, callouts, tables) and would break more easily across
+  Quarto versions.
+- *Matching the reference fonts (TeX Gyre Pagella / Heros):* Rejected — neither is
+  bundled with Typst (`quarto typst fonts` lists only New Computer Modern,
+  Libertinus Serif, and the DejaVu family). To stay self-contained (no external
+  font install), the body keeps New Computer Modern (serif) and the sans role
+  (titles, headers, table headers, captions) uses DejaVu Sans.
+- *Editing the `.qmd` to add layout markup:* Rejected — the content must stay
+  engine-agnostic; all presentation lives in the template.
+
+**Consequences:**
+- (+) `quarto render docs/technical_analysis.qmd` produces an 18-page,
+  portfolio-grade PDF with no changes to the document source.
+- (+) Code highlighting keeps Quarto's default Python token colours (navy
+  keywords, grey comments), which are close to the brand palette.
+- (-) The sans face is DejaVu Sans rather than the reference Heros; the visual
+  feel is close but not identical.
+- (-) The cover date follows the `.qmd` `date: today` field (ISO format) instead
+  of the reference's "June 26, 2026"; pin the `date` in the frontmatter to change
+  it. One label cell in the validation table (`mAP@50-95`) sits tight against its
+  value column because Typst can only break that token at its hyphen.
