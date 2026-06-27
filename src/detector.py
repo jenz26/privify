@@ -7,7 +7,7 @@ confines the third-party coupling to a single file, making it straightforward
 to swap the backend (e.g. ONNX, a different YOLO version) without touching
 downstream code.
 
-By default the detector uses ``face-detector-v0.1.pt``, a YOLOv8n model
+By default the detector uses ``face-detector-v0.2.pt``, a YOLOv8n model
 fine-tuned for single-class face detection.  The weights are downloaded
 automatically from the GitHub Release on first use and cached locally in
 ``models/``.  Pass a custom *model_path* to override (e.g. for testing or
@@ -31,9 +31,11 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # -- Fine-tuned weights distributed via GitHub Releases --------------------
-WEIGHTS_URL = "https://github.com/jenz26/privify/releases/download/face-detector-v0.1/best.pt"
-WEIGHTS_SHA256 = "af443fa561da808b007c62e526d07d947c58e21518b7e10784c704fd9b822d30"
-WEIGHTS_FILENAME = "face-detector-v0.1.pt"
+WEIGHTS_URL = (
+    "https://github.com/jenz26/privify/releases/download/face-detector-v0.2/face-detector-v0.2.pt"
+)
+WEIGHTS_SHA256 = "429b13ecfbb60ea323f950c781c43a16b3f34e1390c7f058279099bba0ebe12e"
+WEIGHTS_FILENAME = "face-detector-v0.2.pt"
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 _DEFAULT_WEIGHTS_PATH = _PROJECT_ROOT / "models" / WEIGHTS_FILENAME
@@ -124,7 +126,7 @@ class Detector:
 
     Args:
         model_path: Path to a YOLO weights file.  Defaults to the
-            fine-tuned ``face-detector-v0.1.pt`` in ``models/``.
+            fine-tuned ``face-detector-v0.2.pt`` in ``models/``.
         conf_threshold: Minimum confidence for a detection to be returned.
             Must be in ``(0.0, 1.0]``.
         device: Device string forwarded to ultralytics (``"cpu"``,
