@@ -31,9 +31,11 @@ from src.detector import Detector
 
 logger = logging.getLogger(__name__)
 
-# Pre-trained COCO weights used by the person-based modes. Ultralytics
-# downloads this asset into models/ on first use (gitignored).
-_COCO_WEIGHTS_PATH = "models/yolov8n.pt"
+# Pre-trained COCO weights used by the person-based modes. This is the bare
+# registry name (no directory): ultralytics resolves it from its own model
+# registry and downloads/caches the COCO weights automatically on first use,
+# on any host, without depending on a local models/ directory.
+_COCO_WEIGHTS_PATH = "yolov8n.pt"
 _PERSON_CLASS_FILTER = ["person"]
 _UPPER_FRACTION = 0.30
 

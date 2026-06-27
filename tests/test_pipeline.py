@@ -169,7 +169,7 @@ class TestProcessVideoModes:
 
             process_video(fake_video, tmp_path / "out.mp4", mode="person_upper")
 
-        mock_det.assert_called_once_with(model_path="models/yolov8n.pt", class_filter=["person"])
+        mock_det.assert_called_once_with(model_path="yolov8n.pt", class_filter=["person"])
         mock_anon.assert_called_once_with(box_mode="upper", upper_fraction=0.30)
 
     def test_process_video_person_full_mode(self, fake_video: Path, tmp_path: Path):
@@ -183,7 +183,7 @@ class TestProcessVideoModes:
 
             process_video(fake_video, tmp_path / "out.mp4", mode="person_full")
 
-        mock_det.assert_called_once_with(model_path="models/yolov8n.pt", class_filter=["person"])
+        mock_det.assert_called_once_with(model_path="yolov8n.pt", class_filter=["person"])
         mock_anon.assert_called_once_with(box_mode="full")
 
     def test_process_video_requires_mode_or_detectors(self, fake_video: Path, tmp_path: Path):
