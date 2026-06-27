@@ -3,7 +3,7 @@ name = "privify"
 version = "0.1.0"
 description = "GDPR-compliant video anonymization"
 requires-python = ">=3.10"
-license = {text = "MIT"}
+license = {text = "AGPL-3.0-or-later"}
 
 [project.optional-dependencies]
 # Development-only tooling, NOT required to run the library. Kept out of
