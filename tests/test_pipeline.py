@@ -15,8 +15,15 @@ import cv2
 import numpy as np
 import pytest
 
-from src.detector import Detection
-from src.pipeline import ProcessingStats, process_video
+from src.anonymizer import Anonymizer
+from src.detector import Detection, Detector
+from src.pipeline import (
+    _PERSON_CLASS_FILTER,
+    _UPPER_FRACTION,
+    ProcessingStats,
+    process_video,
+    resolve_components,
+)
 
 # ------------------------------------------------------------------
 # Fixtures
@@ -183,6 +190,73 @@ class TestProcessVideoModes:
         """Neither mode nor a detector/anonymizer pair provided → ValueError."""
         with pytest.raises(ValueError, match="either 'mode'"):
             process_video(fake_video, tmp_path / "out.mp4")
+
+
+class TestResolveComponents:
+    """Unit tests for the resolve_components factory.
+
+    These tests build each preset pair through the factory and inspect its
+    configuration only.  Because the detector loads YOLO lazily (on the first
+    ``detect`` call, not in ``__init__``), construction touches no model
+    weights, disk, or network, so the suite runs even with ultralytics absent.
+    The classes expose no public accessor for the mode-distinguishing config,
+    so the assertions read the stored attributes (``_class_filter``,
+    ``_box_mode``, ``_upper_fraction``) directly.  Values are checked against
+    the module constants, not literals, so the tests track the source of truth.
+    """
+
+    def test_face_mode_wires_face_detector_and_full_blur(self):
+        """mode='face': no class filter, full-box anonymizer."""
+        detector, anonymizer = resolve_components("face", None, None)
+
+        assert isinstance(detector, Detector)
+        assert isinstance(anonymizer, Anonymizer)
+        assert detector._class_filter is None
+        assert anonymizer._box_mode == "full"
+
+    def test_person_upper_mode_wires_person_filter_and_upper_blur(self):
+        """mode='person_upper': person class filter, upper-region blur."""
+        detector, anonymizer = resolve_components("person_upper", None, None)
+
+        assert isinstance(detector, Detector)
+        assert isinstance(anonymizer, Anonymizer)
+        assert detector._class_filter == _PERSON_CLASS_FILTER
+        assert anonymizer._box_mode == "upper"
+        assert anonymizer._upper_fraction == _UPPER_FRACTION
+
+    def test_person_full_mode_wires_person_filter_and_full_blur(self):
+        """mode='person_full': person class filter, full-box blur."""
+        detector, anonymizer = resolve_components("person_full", None, None)
+
+        assert isinstance(detector, Detector)
+        assert isinstance(anonymizer, Anonymizer)
+        assert detector._class_filter == _PERSON_CLASS_FILTER
+        assert anonymizer._box_mode == "full"
+
+    def test_dependency_injection_returns_injected_objects(self):
+        """mode=None with both collaborators returns them unchanged (by identity)."""
+        detector = Detector()
+        anonymizer = Anonymizer()
+
+        out_detector, out_anonymizer = resolve_components(None, detector, anonymizer)
+
+        assert out_detector is detector
+        assert out_anonymizer is anonymizer
+
+    def test_no_mode_and_no_components_raises(self):
+        """mode=None with neither collaborator supplied → ValueError."""
+        with pytest.raises(ValueError):
+            resolve_components(None, None, None)
+
+    def test_partial_injection_detector_only_raises(self):
+        """mode=None requires BOTH collaborators: detector alone → ValueError."""
+        with pytest.raises(ValueError):
+            resolve_components(None, Detector(), None)
+
+    def test_partial_injection_anonymizer_only_raises(self):
+        """mode=None requires BOTH collaborators: anonymizer alone → ValueError."""
+        with pytest.raises(ValueError):
+            resolve_components(None, None, Anonymizer())
 
 
 class TestProcessingStats:
