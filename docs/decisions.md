@@ -459,3 +459,46 @@ original) to give code blocks the branded background and a thin border.
   of the reference's "June 26, 2026"; pin the `date` in the frontmatter to change
   it. One label cell in the validation table (`mAP@50-95`) sits tight against its
   value column because Typst can only break that token at its hyphen.
+
+## 2026-06-27 — Transcode webapp output to H.264 via imageio-ffmpeg
+
+**Context:** `process_video` writes its output with the `mp4v` codec (MPEG-4
+Part 2), which is safe and portable for OpenCV because it is compiled into every
+build, including the `opencv-python-headless` wheel used by the web app. The
+front-end, however, must play the anonymized result *inline* (in Streamlit's
+`st.video`), not merely offer it as a download, and browsers (HTML5 `<video>`)
+frequently refuse to play `mp4v`. Reliable in-browser playback requires H.264
+with the `yuv420p` pixel format and the `+faststart` flag (the moov atom moved
+to the front of the file for progressive streaming). Writing H.264 directly from
+OpenCV is not dependable: `opencv-python-headless` ships without an
+x264/openh264 encoder in most cases (codec licensing), so `cv2.VideoWriter`
+would silently fall back or produce an unusable file. The core therefore stays
+on `mp4v` and the format conversion lives in a separate layer.
+
+**Decision:** Keep the core pipeline unchanged (it still writes `mp4v`), and add
+a `transcode_h264` step in `webapp/utils/processing.py` that re-encodes the
+`mp4v` output to H.264 (`libx264`, `yuv420p`, `+faststart`). The `ffmpeg` binary
+is provided by `imageio-ffmpeg` (installed via pip, a self-contained static
+build) instead of a system `ffmpeg`. The full webapp run returns the path to the
+transcoded H.264 file for inline playback.
+
+**Alternatives considered:**
+- *System `ffmpeg` (provisioned via `packages.txt` or a Dockerfile):* Rejected
+  because it makes the build host-dependent (the binary must be present on the
+  deployment image), which conflicts with keeping the application portable and
+  deciding the deployment target late.
+- *Direct H.264 from OpenCV (`cv2.VideoWriter` with an H.264 fourcc):* Rejected
+  as fragile: the headless wheel usually lacks an x264/openh264 encoder for
+  licensing reasons, so the writer can silently emit an empty or still-`mp4v`
+  file depending on the build.
+
+**Consequences:**
+- (+) Total portability: the transcode dependency is pip-only and host-agnostic,
+  consistent with a portable build whose deployment is decided late.
+- (+) The demo is reproducible in-browser: the anonymized video plays inline in
+  `st.video` on any environment, with no system packages to install.
+- (-) Larger install footprint: `imageio-ffmpeg` bundles a static `ffmpeg`
+  binary (tens of MB) in the webapp environment.
+- (-) The transcode is a second pass over the output (decode plus re-encode of
+  the already written `mp4v` file), adding time proportional to the video
+  length.
