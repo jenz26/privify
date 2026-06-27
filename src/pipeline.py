@@ -61,20 +61,39 @@ class ProcessingStats:
         return self.total_frames / self.elapsed_seconds
 
 
-def _resolve_components(
+def resolve_components(
     mode: Literal["face", "person_upper", "person_full"] | None,
     detector: Detector | None,
     anonymizer: Anonymizer | None,
 ) -> tuple[Detector, Anonymizer]:
     """Select the detector/anonymizer pair for a run.
 
-    If *mode* is given, build the preset pair for that mode (ignoring any
-    injected *detector*/*anonymizer*).  Otherwise fall back to the injected
-    pair.
+    This is the single source of truth mapping a preset *mode* to its
+    ``(Detector, Anonymizer)`` pair, shared by the video pipeline and any
+    other entry point (such as a web front-end) that needs the same presets.
+
+    Two resolution strategies are supported:
+
+    - **By mode**: when *mode* is given, build the preset pair for that mode
+      and ignore any injected *detector*/*anonymizer*.
+    - **By dependency injection**: when *mode* is ``None``, both *detector*
+      and *anonymizer* must be supplied and are returned unchanged.
+
+    Args:
+        mode: Preset hybrid configuration, or ``None`` to use dependency
+            injection.  One of ``"face"``, ``"person_upper"``,
+            ``"person_full"``.
+        detector: A :class:`~src.detector.Detector`.  Used only when *mode*
+            is ``None``; ignored otherwise.
+        anonymizer: An :class:`~src.anonymizer.Anonymizer`.  Used only when
+            *mode* is ``None``; ignored otherwise.
+
+    Returns:
+        The resolved ``(detector, anonymizer)`` pair.
 
     Raises:
-        ValueError: If neither *mode* nor both *detector* and *anonymizer*
-            are provided.
+        ValueError: If *mode* is unknown, or if neither *mode* nor both
+            *detector* and *anonymizer* are provided.
     """
     if mode is not None:
         if mode == "face":
@@ -146,7 +165,7 @@ def process_video(
         FileNotFoundError: If *input_path* does not exist or cannot be
             opened by OpenCV.
     """
-    detector, anonymizer = _resolve_components(mode, detector, anonymizer)
+    detector, anonymizer = resolve_components(mode, detector, anonymizer)
 
     cap = cv2.VideoCapture(str(input_path))
     if not cap.isOpened():
