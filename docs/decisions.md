@@ -502,3 +502,47 @@ transcoded H.264 file for inline playback.
 - (-) The transcode is a second pass over the output (decode plus re-encode of
   the already written `mp4v` file), adding time proportional to the video
   length.
+
+## 2026-06-27 — Split requirements into runtime and dev layers for Streamlit Cloud
+
+**Context:** Streamlit Community Cloud installs exactly one dependency file: it
+searches the entrypoint directory and then the repository root, and uses the
+first dependency file it finds. With `app.py` at the repository root, only
+`requirements.txt` at the root is read; there is no UI option to point the build
+at a differently named file. The project has two kinds of dependencies: the
+production runtime needed to *run* the app (core ML plus the webapp deps) and the
+development tooling needed to *test* and *lint* it (`pytest`, `ruff`). The deploy
+environment must not carry the dev tooling (dead weight, slower cold start, which
+matters on the free tier where apps sleep and cold-start). OpenCV also had a
+conflict: `opencv-python` (core) versus `opencv-python-headless` (webapp) declared
+the same `cv2` module, and on a headless Linux host (Streamlit Cloud) the
+non-headless build fails on `libGL`.
+
+**Decision:** `requirements.txt` is the production runtime: core ML plus the
+webapp deps, with OpenCV pinned to the headless build (`opencv-python-headless`).
+This is the single file Streamlit Cloud installs. `requirements-dev.txt` layers
+the dev tooling on top via `-r requirements.txt` plus `pytest` and `ruff`; CI and
+local development install this file. The former `requirements-webapp.txt` is
+absorbed into `requirements.txt` and removed, since the meaningful axis is runtime
+versus dev, not core versus webapp.
+
+**Alternatives considered:**
+- *A dedicated `requirements-deploy.txt` pointed at from the Streamlit Cloud UI:*
+  Not viable: Cloud reads only `requirements.txt` at the entrypoint or root, with
+  no custom path option.
+- *Keeping `opencv-python` in the core and `opencv-python-headless` in the webapp:*
+  Rejected: it leaves two `cv2` providers installed and the `libGL` failure on the
+  Cloud host.
+- *A single flat `requirements.txt` with everything, dev tools included:* Rejected:
+  it ships `pytest` and `ruff` to the deploy environment (slower cold start) and
+  gives no runtime versus dev separation.
+
+**Consequences:**
+- (+) One file Streamlit Cloud reads installs the full runtime; one `cv2` (the
+  headless build) across the whole project, so the conflict is gone.
+- (+) Clean runtime versus dev separation, defensible and conventional.
+- (-) Colab notebooks installing `requirements.txt` now also pull `streamlit` and
+  `imageio-ffmpeg` (minor, harmless overhead).
+- (-) The Makefile install target installs the runtime only; running tests or lint
+  locally after a clean install requires `requirements-dev.txt` (tracked as 6.7
+  polish).
