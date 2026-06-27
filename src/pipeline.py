@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import logging
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
@@ -101,6 +102,7 @@ def process_video(
     mode: Literal["face", "person_upper", "person_full"] | None = None,
     detector: Detector | None = None,
     anonymizer: Anonymizer | None = None,
+    on_progress: Callable[[int, int], None] | None = None,
 ) -> ProcessingStats:
     """Read *input_path* frame-by-frame, anonymize, and write to *output_path*.
 
@@ -130,6 +132,10 @@ def process_video(
             only when *mode* is ``None``.
         anonymizer: An :class:`~src.anonymizer.Anonymizer` (keyword-only).
             Used only when *mode* is ``None``.
+        on_progress: Optional callback (keyword-only) invoked once per
+            processed frame with ``(current, total)``, where *current* is the
+            1-indexed frame number and *total* is the frame count reported by
+            the container, or ``0`` when unknown.
 
     Returns:
         A :class:`ProcessingStats` summarising the run.
@@ -166,6 +172,7 @@ def process_video(
 
     total_frames = 0
     total_detections = 0
+    progress_total = frame_count if frame_count > 0 else 0
     start = time.monotonic()
 
     try:
@@ -184,6 +191,9 @@ def process_video(
 
             if total_frames % 100 == 0:
                 logger.debug("Processed %d frames so far …", total_frames)
+
+            if on_progress is not None:
+                on_progress(total_frames, progress_total)
     finally:
         cap.release()
         writer.release()

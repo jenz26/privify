@@ -110,6 +110,29 @@ class TestProcessVideo:
         assert detector.detect.call_count == NUM_TEST_FRAMES
         assert anonymizer.anonymize.call_count == NUM_TEST_FRAMES
 
+    def test_process_video_reports_progress_per_frame(self, fake_video: Path, tmp_path: Path):
+        """on_progress fires once per frame: current goes 1..N, total stays constant."""
+        detector = _make_mock_detector()
+        anonymizer = _make_mock_anonymizer()
+        calls: list[tuple[int, int]] = []
+
+        process_video(
+            fake_video,
+            tmp_path / "output.mp4",
+            detector=detector,
+            anonymizer=anonymizer,
+            on_progress=lambda current, total: calls.append((current, total)),
+        )
+
+        # One callback per processed frame.
+        assert len(calls) == NUM_TEST_FRAMES
+        # current is 1-indexed and strictly monotonic up to N.
+        currents = [current for current, _ in calls]
+        assert currents == list(range(1, NUM_TEST_FRAMES + 1))
+        # total is the same value in every call.
+        totals = {total for _, total in calls}
+        assert len(totals) == 1
+
 
 class TestProcessVideoModes:
     """The mode parameter wires the correct detector/anonymizer per scenario."""
