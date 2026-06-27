@@ -2,32 +2,60 @@
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/jenz26/privify/blob/main/notebooks/demo_colab.ipynb)
 
-> GDPR-compliant video anonymization through automatic face and license plate blurring.
+**Live demo:** [https://privify.streamlit.app](https://privify.streamlit.app)
 
-Privify is a computer vision pipeline that automatically detects and blurs faces and 
-vehicle license plates in video footage, enabling organizations to share, store, or 
-publish CCTV and surveillance recordings while preserving the privacy of individuals 
-captured in the scenes.
+> GDPR-compliant anonymization of people and faces in CCTV video.
 
-The project was developed as the final assignment for the Computer Vision course at 
-Epicode Institute of Technology, with a focus on real-world applicability for small 
-and medium-sized enterprises subject to GDPR requirements.
+Privify detects people and faces in video surveillance footage and blurs them, so
+that small and medium-sized Italian enterprises can retain, share, or publish CCTV
+recordings while staying compliant with the GDPR.
+
+## Overview
+
+Privify was developed as the final project for the Computer Vision course at Epicode
+Institute of Technology. It ships as a dual deliverable: a reusable detection-and-blur
+pipeline (the `src` package) and a deployed Streamlit web application that runs the
+pipeline directly from the browser.
+
+The goal is real-world applicability for organizations that handle surveillance
+footage and need a fast, repeatable way to anonymize it before it leaves the premises.
 
 ## Why this matters
 
-Under the GDPR (Art. 4) and EDPB guidelines, both human faces and vehicle license 
-plates qualify as personal data: they can identify individuals directly (faces) or 
-indirectly via vehicle ownership records (plates). Any organization that retains, 
-shares, or publishes video footage containing identifiable subjects must either 
-obtain explicit consent or apply effective anonymization. Manual anonymization is 
-labor-intensive and error-prone; Privify automates it.
+Under the GDPR (Art. 4) and the guidelines of the European Data Protection Board, a
+human face is personal data: it identifies an individual directly. Any organization
+that retains, shares, or publishes video footage of identifiable people must either
+obtain explicit consent or apply effective anonymization. Doing this by hand is slow
+and error-prone, and a single missed frame is already a privacy leak. Privify automates
+the process.
 
-Typical use cases:
+Typical use cases for small and medium-sized enterprises:
+
 - Retail and hospitality CCTV review
-- Construction site documentation and drone footage
 - Logistics and warehouse surveillance archives
-- Internal training material derived from real recordings
-- Insurance and legal evidence preparation
+- Office and workplace footage shared for documentation or training
+
+## Anonymization modes
+
+Privify offers three selectable modes. They exist because no single detector covers
+every CCTV scenario equally well.
+
+- `face`: blurs only the detected faces, using the fine-tuned face detector. Fast, and
+  well suited to close-up scenes where faces are large and roughly frontal.
+- `person_upper`: blurs the head-and-shoulders region (the upper 30% of each detected
+  person box), using a COCO person detector. Higher recall than face detection on
+  street-level CCTV.
+- `person_full`: blurs the entire person box, using a COCO person detector. Maximum
+  privacy, at the cost of obscuring more of the frame.
+
+The rationale behind these modes is the core design decision of the project. A
+dedicated face detector has limited recall on street-level CCTV, where faces are small,
+turned away, or partially occluded. The `person_*` modes sidestep this by detecting the
+person instead of the face: a person is a much larger and more reliably detected
+target, so recall is substantially higher. `person_upper` is a middle ground that still
+anonymizes the identifying region (the head) while leaving most of the body visible,
+and `person_full` trades visibility for the strongest privacy guarantee. The Results
+section below quantifies why this matters.
 
 ## Pipeline
 
@@ -35,78 +63,136 @@ Typical use cases:
 Video input
     │
     ▼
-[1] Frame extraction & preprocessing  (OpenCV)
+[1] Frame extraction          (OpenCV, frame by frame)
     │
     ▼
-[2] Object detection                  (YOLOv8, fine-tuned)
-    │   ├── Face detector head
-    │   └── License plate detector head
+[2] Detection                 (YOLOv8: fine-tuned face model
+    │                          or COCO person model, per mode)
     ▼
-[3] Multi-object tracking             (ByteTrack)
-    │   (temporal coherence across frames)
-    ▼
-[4] Blur application                  (Gaussian, OpenCV)
-    │
+[3] Gaussian blur             (irreversible, applied to each
+    │                          detected region)
     ▼
 Anonymized video output
 ```
 
-### Stage details
+Privify decodes the input video frame by frame with OpenCV, runs detection on each
+frame with a YOLOv8 model (the fine-tuned face model for `face` mode, or a COCO person
+model for the `person_*` modes), and blurs every detected region with a Gaussian kernel
+sized proportionally to the box. The blurred frames are re-encoded into the output
+video. The pipeline is stateless and per-frame: there is no temporal tracking stage.
+Gaussian blur is chosen over pixelation for visual naturalness, and over face
+replacement because it is irreversible, which is the property that matters for
+compliance.
 
-1. **Data Acquisition & Preprocessing** — Video is decoded frame-by-frame via 
-   OpenCV. Each frame is resized and normalized to YOLOv8's expected input format. 
-   During training, standard Ultralytics augmentations are applied (HSV jitter, 
-   horizontal flip, mosaic).
+## Web application
 
-2. **Feature Engineering & Detection** — A YOLOv8 backbone, pretrained on COCO and 
-   fine-tuned on WIDER FACE (faces) and CCPD (license plates), produces bounding 
-   boxes with confidence scores. The CNN backbone learns visual features 
-   automatically; no handcrafted descriptors are used.
+The Streamlit application (`app.py`) wraps the pipeline in a browser interface:
 
-3. **Tracking & Post-processing** — Detections are linked across consecutive frames 
-   using ByteTrack to enforce temporal consistency. This eliminates flickering 
-   (a frame where a face is missed creates a privacy leak) and stabilizes bounding 
-   box positions. Non-Maximum Suppression is applied within YOLOv8 to remove 
-   duplicate detections.
+1. Upload a video.
+2. Select an anonymization mode.
+3. Preview the effect: Privify picks a few representative frames and shows them before
+   and after blurring, so the result can be checked before committing.
+4. Run the full anonymization, with a progress bar that reports frame-by-frame
+   progress.
+5. Download the anonymized video.
 
-4. **Blur Application** — Detected regions are blurred using a Gaussian kernel sized 
-   proportionally to the bounding box. Gaussian blur is preferred over pixelation 
-   for visual naturalness and over face replacement for irreversibility 
-   (a key compliance property).
+The output is transcoded to H.264 (via the ffmpeg binary bundled with `imageio-ffmpeg`)
+so that it plays back directly in the browser, since the codec OpenCV writes by default
+is not reliably playable in HTML5. The app is deployed on Streamlit Community Cloud at
+[https://privify.streamlit.app](https://privify.streamlit.app).
+
+Run it locally with:
+
+```bash
+streamlit run app.py
+```
+
+## Results
+
+The empirical story of this project is about domain shift, the gap between the training
+data and the real deployment target (street-level CCTV).
+
+- The first face detector (`face-detector-v0.1`) reached mAP@50 = 0.937
+  in-distribution, but only 17.2% recall on the real CCTV target. A generic COCO person
+  detector reached 80.4% recall on the same footage: a structural gap of roughly 63
+  percentage points, driven entirely by domain shift.
+- Re-training on a WIDER FACE subset biased toward small faces (`face-detector-v0.2`)
+  raised target recall to 59.5%, an improvement of +42.4 percentage points over v0.1,
+  with all hyperparameters held constant (a single-variable comparison).
+- A residual gap of -20.9 percentage points remained against the COCO person detector
+  (59.5% vs 80.4%). This is an intrinsic limit of face detection on CCTV, and it is
+  exactly what motivates the `person_*` modes described above.
+
+Validation metrics for the current face model (`face-detector-v0.2`), measured on a
+WIDER FACE validation subset (300 images, 6,559 face instances):
+
+| Metric | Value |
+|---|---|
+| Precision | 0.811 |
+| Recall | 0.527 |
+| mAP@50 | 0.612 |
+| mAP@50-95 | 0.321 |
+
+The full out-of-distribution evaluation is reported in the Technical Analysis Document.
 
 ## Repository structure
 
 ```
 privify/
-├── README.md
-├── requirements.txt
-├── notebooks/
-│   └── demo_colab.ipynb        # End-to-end demo, runnable on Colab T4
+├── app.py                      # Streamlit web app entry point
+├── requirements.txt            # Runtime dependencies
+├── requirements-dev.txt        # Development and CI dependencies
+├── packages.txt                # System libraries for Streamlit Cloud
+├── pyproject.toml              # Project metadata and ruff config
+├── Makefile                    # Common development tasks
+├── .streamlit/
+│   └── config.toml             # Streamlit configuration
 ├── src/
-│   ├── detector.py             # YOLOv8 wrapper for faces + plates
-│   ├── tracker.py              # ByteTrack integration
-│   ├── anonymizer.py           # Blur application + main pipeline
-│   └── evaluate.py             # mAP, IoU, privacy leakage rate
-├── data/                       # Datasets (gitignored, see notebooks)
-├── models/                     # Fine-tuned weights
-├── samples/                    # Example input/output videos
+│   ├── __init__.py
+│   ├── detector.py             # YOLOv8 detection wrapper (face and COCO person)
+│   ├── anonymizer.py           # Gaussian blur on detected regions
+│   ├── pipeline.py             # Mode resolution and video processing
+│   └── training.py             # Face detector fine-tuning entry point
+├── webapp/
+│   ├── __init__.py
+│   └── utils/
+│       ├── __init__.py
+│       ├── video.py            # Frame extraction and video helpers
+│       └── processing.py       # Preview, full run, H.264 transcode
+├── tests/
+│   ├── test_detector.py
+│   ├── test_anonymizer.py
+│   ├── test_pipeline.py
+│   ├── test_training.py
+│   ├── test_smoke.py
+│   ├── test_prepare_wider_face.py
+│   ├── test_webapp_video.py
+│   └── test_webapp_processing.py
+├── notebooks/
+│   ├── demo_colab.ipynb        # End-to-end demo, runnable on Colab T4
+│   ├── finetune_face.ipynb     # Face detector fine-tuning
+│   └── ood_evaluation.ipynb    # Out-of-distribution evaluation
+├── tools/
+│   └── prepare_wider_face.py   # WIDER FACE dataset preparation
 └── docs/
-    └── technical_analysis.pdf  # 10-page technical document
+    ├── technical_analysis.pdf  # Technical Analysis Document
+    ├── technical_analysis.qmd  # Quarto source for the document
+    ├── decisions.md            # Architectural Decision Records
+    └── typst-template.typ      # Typst template for the PDF
 ```
 
 ## Setup
 
-### Option A — Google Colab (recommended for quick demo)
+Privify requires Python 3.10 or newer (the live deployment runs on 3.13).
 
-Open `notebooks/demo_colab.ipynb` in Colab, select a T4 GPU runtime, run all cells. 
-The notebook downloads model weights, processes a sample video, and produces an 
-anonymized output.
+### Option A: Google Colab (quickest demo)
 
-See the badge at the top of this README, or click [here](https://colab.research.google.com/github/jenz26/privify/blob/main/notebooks/demo_colab.ipynb).
+Open `notebooks/demo_colab.ipynb` in Colab, select a T4 GPU runtime, and run all cells.
+The notebook downloads the model weights, processes a sample video, and produces an
+anonymized output. Use the badge at the top of this README, or open it
+[here](https://colab.research.google.com/github/jenz26/privify/blob/main/notebooks/demo_colab.ipynb).
 
-### Option B — Local environment
-
-Requirements: Python 3.10+, ffmpeg installed system-wide.
+### Option B: Local environment
 
 ```bash
 git clone https://github.com/jenz26/privify.git
@@ -116,91 +202,72 @@ source .venv/bin/activate     # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-Run the pipeline on a video:
+Launch the web app:
 
 ```bash
-python -m src.anonymizer --input samples/input.mp4 --output samples/output.mp4
+streamlit run app.py
 ```
 
-> **Note:** on first run, `Detector` automatically downloads the fine-tuned
-> face-detection weights (~6 MB) from the `face-detector-v0.1` GitHub Release
-> and caches them in `models/`. Internet connection is required only once per
-> environment.
+Or use the pipeline programmatically:
 
-## Datasets
+```python
+from pathlib import Path
 
-| Dataset | Usage | Source |
-|---|---|---|
-| WIDER FACE | Face detection fine-tuning | http://shuoyang1213.me/WIDERFACE/ |
-| CCPD | License plate fine-tuning | https://github.com/detectRecog/CCPD |
-| Italian plates (custom, ~50 samples) | Domain shift evaluation | Collected manually |
+from src.pipeline import process_video
 
-## Evaluation
+process_video(
+    Path("input.mp4"),
+    Path("output.mp4"),
+    mode="person_upper",
+)
+```
 
-The system is evaluated on three axes:
-
-- **Detection quality** — mAP@0.5 and mAP@0.5:0.95 on held-out test sets, 
-  per class (face / plate)
-- **Privacy leakage rate** — fraction of frames in test videos where at least 
-  one ground-truth subject (face or plate) is not blurred. This is the metric 
-  that matters for compliance.
-- **Throughput** — frames per second on Colab T4, used for deployment feasibility 
-  discussion
-
-Detailed results are reported in `docs/technical_analysis.pdf`.
-
-## Results summary
-
-### Face detector (face-detector-v0.1)
-
-YOLOv8n fine-tuned on dataset-v0.2. Validation set: 156 images, 270 face
-instances.
-
-| Metric | Value |
-|---|---|
-| Precision | 0.940 |
-| Recall | 0.869 |
-| mAP@50 | 0.937 |
-| mAP@50-95 | 0.682 |
+> **Model weights:** on its first detection, the `face` mode automatically downloads the
+> fine-tuned `face-detector-v0.2` weights (~6 MB) from the project's GitHub Release,
+> verifies them with a SHA-256 checksum, and caches them under `models/`. The `person_*`
+> modes use the COCO `yolov8n` weights, which ultralytics downloads from its own
+> registry on first use. An internet connection is needed only once per environment, and
+> no system-wide ffmpeg is required: the ffmpeg binary is bundled via `imageio-ffmpeg`.
 
 ## Limitations and failure modes
 
-Documented in detail in `docs/technical_analysis.pdf`. Highlights:
+Discussed in detail in the Technical Analysis Document. Highlights:
 
-- Performance degrades on faces smaller than ~24 pixels (typical for far-field 
-  CCTV)
-- Domain shift between Chinese (CCPD training) and European license plates 
-  affects detection rate; mitigated partially by fine-tuning on a small 
-  Italian test set
-- Severe occlusion (e.g., faces partially covered by hands or hats) reduces 
-  recall; not addressed in this version
-- The Gaussian blur is non-reversible by design but does not protect against 
-  re-identification through gait, clothing, or contextual cues
+- Face detection recall drops on the small, turned-away, and partially occluded faces
+  that are typical of street-level CCTV. This is the limitation that the `person_upper`
+  and `person_full` modes are designed to mitigate.
+- Gaussian blur is irreversible by design, but it does not protect against
+  re-identification through gait, clothing, or contextual cues.
 
 ## Ethical considerations
 
-Discussed in `docs/technical_analysis.pdf`. Key points:
+Discussed in the Technical Analysis Document. Key points:
 
-- Face detectors are known to underperform on darker skin tones (Buolamwini & 
-  Gebru, 2018). Per-subgroup performance is reported where dataset annotations 
-  allow.
-- Anonymization protects identity within the video but does not address upstream 
-  questions about whether the recording was lawful.
-- The system is intended as a privacy-enhancing tool, not as a workaround for 
-  unlawful surveillance.
+- Face detectors are known to underperform on darker skin tones (Buolamwini & Gebru,
+  2018). This bias is acknowledged and reported where dataset annotations allow.
+- Anonymization protects identity within the video, but it does not answer the upstream
+  question of whether the recording was lawful in the first place.
+- Privify is intended as a privacy-enhancing tool, not as a workaround for unlawful
+  surveillance.
 
 ## Documentation
 
-- [Technical Analysis Document](docs/technical_analysis.pdf) — 10-page report 
-  covering problem statement, methodology, experimental results, failure analysis, 
+- [Technical Analysis Document](docs/technical_analysis.pdf): the full report covering
+  problem statement, methodology, the out-of-distribution evaluation, failure analysis,
   and ethical considerations.
-- [Architectural Decision Records](docs/decisions.md) — versioned log of design 
+- [Architectural Decision Records](docs/decisions.md): a versioned log of the design
   decisions made during development.
 
 ## License
 
-[*To be decided — MIT or Apache-2.0 recommended*]
+This project is licensed under AGPL-3.0. Privify builds on Ultralytics YOLOv8, which is
+distributed under AGPL-3.0; as a copyleft license it requires derivative works to adopt
+the same terms. The Affero clause also covers network use, which is appropriate since
+Privify is deployed as a web application. The redistributed fine-tuned weights inherit
+AGPL-3.0 from the base model.
 
 ## Author
 
-[*Marco — your details*]
+Marco Contin  
+Epicode Institute of Technology, student ID s00006824  
+Computer Vision final project
