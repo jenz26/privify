@@ -1,0 +1,10 @@
+# Streamlit theme for the Privify web app (Epicode branding).
+# Applied automatically when the app is started with `streamlit run app.py`.
+[theme]
+primaryColor = "#D6006E"              # Epicode magenta: buttons and accents
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F5F3F7"  # light lilac tint for boxes and widgets
+textColor = "#1C2541"                 # Epicode navy
+font = "sans serif"
+[server]
+maxUploadSize = 100
