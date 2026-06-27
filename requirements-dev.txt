@@ -1,0 +1,5 @@
+# Dev/CI layer on top of the production runtime. Pulls in everything from
+# requirements.txt, then adds the test + lint tooling used in CI.
+-r requirements.txt
+pytest~=8.3.0
+ruff~=0.8.0

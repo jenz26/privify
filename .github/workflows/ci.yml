@@ -27,7 +27,7 @@ jobs:
             ${{ runner.os }}-pip-
 
       - name: Install dependencies
-        run: pip install -r requirements.txt -r requirements-webapp.txt
+        run: pip install -r requirements-dev.txt
 
       - name: Ruff check
         run: ruff check .
