@@ -1,22 +1,26 @@
 ---
 title: "Privify"
-subtitle: "A Computer Vision Pipeline for GDPR-Compliant Face Anonymization"
+subtitle: "A Computer Vision Pipeline for GDPR-Compliant Person and Face Anonymization in CCTV Video"
 author:
   - name: "Marco Contin"
     affiliation: "Epicode Institute of Technology"
     email: "s00006824@epicode.edu.mt"
-date: today
+date: "June 2026"
 abstract: |
-  Privify is a Python-based computer vision pipeline that detects and
-  anonymizes faces in video footage to support GDPR compliance for small
-  and medium enterprises operating CCTV systems. The system combines a
-  fine-tuned YOLOv8n detector (mAP@50 = 0.937 on a single-class face
-  dataset) with a configurable Gaussian blur anonymizer. This report
-  describes the pipeline architecture, training methodology, empirical
-  evaluation, and the domain-shift failure mode observed when deploying
-  the in-distribution-optimized detector on street-level CCTV scenes. This is a
-  concrete illustration of the metric-vs-behavior gap in applied ML.
-keywords: [computer vision, object detection, YOLOv8, GDPR, anonymization, domain shift, transfer learning]
+  Privify is a Python computer vision pipeline that anonymizes people and
+  faces in CCTV footage, supporting GDPR compliance for the small and medium
+  enterprises that operate video surveillance. It combines a fine-tuned
+  YOLOv8n face detector with a hybrid three-mode strategy (face, person_upper,
+  person_full) that falls back to person detection for the street-level scenes
+  where faces are too small to detect reliably. The central empirical finding
+  is a measured domain shift: the in-distribution-optimized face detector
+  reaches only 17.2% recall on the real CCTV target, against 80.4% for a
+  generic person detector. Re-training on a small-face-biased subset of WIDER
+  FACE recovers recall to 59.5% (a single-variable improvement of +42.4
+  percentage points), but a residual gap remains that motivates the
+  person-based modes. The system is a concrete illustration of the
+  metric-versus-behavior gap in applied machine learning.
+keywords: [computer vision, object detection, YOLOv8, GDPR, anonymization, domain shift, transfer learning, hybrid detection, person detection]
 ---
 
 # Problem Statement
@@ -79,10 +83,7 @@ Records documenting every technical choice. The target deployment is the IT
 consultant working with Italian SMEs: the system must run on a laptop or a small
 server without dedicated GPU, process archived video in times acceptable for
 batch use, and produce redacted output that the data controller can legitimately
-retain or share. The extension of the detector to the license plate class, part
-of Privify's original positioning for the Italian CCTV context (drive-through,
-private parking, commercial entrances), is planned as future work for the v1.0
-release.
+retain or share.
 
 This report documents the development of Privify across its first two iterations
 (v0.1 and v0.2),
@@ -727,15 +728,12 @@ nature, is that explicitly documenting failures as didactic units with root caus
 analysis and mitigation roadmap produces more useful technical documentation, both
 internally and for external discourse, than success-only case studies do.
 
-The project roadmap envisions three development directions for the v1.0 release. The
-first is the extension of the system to license plate detection and blurring, part of
-Privify's original positioning for the Italian CCTV context (drive-through, private
-parking, commercial entrances) and cited in §1. The second is the integration of
-training datasets representative of the Italian demographic context, mitigating the
-residual bias discussed in §5.4. The third is deployment optimization for edge
-computing via model export in `ONNX` or `TensorRT` format, enabling execution on even
-more affordable hardware (Raspberry Pi 5, NVIDIA Jetson Nano) for on-premise SME
-deployment scenarios.
+The project roadmap envisions two development directions for the v1.0 release. The
+first is the integration of training datasets representative of the Italian
+demographic context, mitigating the residual bias discussed in §5.4. The second is
+deployment optimization for edge computing via model export in `ONNX` or `TensorRT`
+format, enabling execution on even more affordable hardware (Raspberry Pi 5, NVIDIA
+Jetson Nano) for on-premise SME deployment scenarios.
 
 Privify remains open to external contributions on the GitHub repository, and the
 datasets and models are publicly available for audit and reproducibility of the
