@@ -175,10 +175,13 @@ privify/
 ├── tools/
 │   └── prepare_wider_face.py   # WIDER FACE dataset preparation
 └── docs/
-    ├── technical_analysis.pdf  # Technical Analysis Document
-    ├── technical_analysis.qmd  # Quarto source for the document
-    ├── decisions.md            # Architectural Decision Records
-    └── typst-template.typ      # Typst template for the PDF
+    ├── technical_analysis.pdf           # Technical Analysis Document (extended)
+    ├── technical_analysis.qmd           # Quarto source for the extended version
+    ├── technical_analysis_compact.pdf   # Compact 10-page version (exam submission)
+    ├── technical_analysis_compact.qmd   # Quarto source for the compact version
+    ├── _compact/                        # Sober paper template + figure-width filter for the compact
+    ├── decisions.md                     # Architectural Decision Records
+    └── typst-template.typ               # Typst template for the PDF
 ```
 
 ## Setup
