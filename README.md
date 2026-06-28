@@ -252,9 +252,13 @@ Discussed in the Technical Analysis Document. Key points:
 
 ## Documentation
 
-- [Technical Analysis Document](docs/technical_analysis.pdf): the full report covering
-  problem statement, methodology, the out-of-distribution evaluation, failure analysis,
-  and ethical considerations.
+- [Technical Analysis Document (compact, 10 pages)](docs/technical_analysis_compact.pdf):
+  the exam submission version, in academic paper format, covering problem statement,
+  methodology, experimental results, failure analysis, and ethical considerations. This
+  is the reference version for evaluation.
+- [Technical Analysis Document (extended, ~18 pages)](docs/technical_analysis.pdf): an
+  extended version with the same analysis in greater depth and full formatting, for
+  readers who want the complete treatment.
 - [Architectural Decision Records](docs/decisions.md): a versioned log of the design
   decisions made during development.
 
