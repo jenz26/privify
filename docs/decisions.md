@@ -5,6 +5,8 @@ of Privify. Each entry follows a lightweight ADR format.
 
 ## 2026-05-07 — Initial stack selection
 
+**Status:** Superseded
+
 **Context:** Privify is a final exam project for a Computer Vision course. It must
 run on Google Colab with a T4 GPU, detect faces and license plates in video, and
 blur them for GDPR compliance. The scope is fixed and the codebase must be clear
@@ -24,7 +26,15 @@ OpenCV for video I/O and blur operations.
   dependencies, and performs comparably on the metrics we care about (consistent
   identity assignment across frames).
 
+**Superseded note:** multi-object tracking (ByteTrack) was never implemented; the
+final pipeline is per-frame and stateless (see ADR 2026-06-26 "Hybrid detection
+strategy: face vs person modes"). License plate detection was removed from the
+v1.0 scope and is not part of the delivered system. This record is retained for
+decision history.
+
 ## 2026-05-07 — COCO classes as placeholder until fine-tuning
+
+**Status:** Superseded
 
 **Context:** The detection module (`src/detector.py`) needs to work immediately
 for integration testing and pipeline development, but the fine-tuned model on
@@ -44,6 +54,10 @@ changes when the model is swapped.
 - *Use a face-specific detector (RetinaFace/MTCNN) as interim:* Rejected because
   it introduces a dependency that would be thrown away after fine-tuning.  Using
   the same ultralytics interface now avoids a throwaway integration effort.
+
+**Superseded note:** the downstream "tracker" module was never built; CCPD (the
+license plate dataset) was dropped. The fine-tuning path is documented in the
+2026-05-13 and 2026-06-26 ADRs. Retained for decision history.
 
 ## 2026-05-07 — Gaussian blur as anonymization strategy
 
