@@ -62,6 +62,7 @@ CLAUDE.md
 .coverage
 htmlcov/
 .ruff_cache/
+.hypothesis/
 
 # Personal study notes (not part of the public deliverable)
 docs/exam_notes.md
