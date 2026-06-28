@@ -45,7 +45,7 @@ from webapp.utils.video import get_video_info
 logger = logging.getLogger(__name__)
 
 # --- Constants ---------------------------------------------------------------
-LOGO_PATH = Path("assets/logo_epicode.png")
+LOGO_PATH = Path("assets/logo_epicode_dark.png")
 MAX_UPLOAD_BYTES = 100 * 1024 * 1024  # 100 MB soft limit, also stated in the UI
 
 # Anonymization presets: mode key -> Italian label and description shown next to
@@ -353,12 +353,24 @@ else:
 
 # ---- Disclaimer + footer ----
 st.divider()
+# Anonymization-limits notice: the detector is not perfect, so this is the
+# disclaimer that matters most. Render it as a warning so it stays visually
+# prominent instead of being buried in a grey caption.
+st.warning(
+    "Privify riduce l'identificabilita' dei soggetti, non la elimina. Il rilevamento "
+    "non e' perfetto: alcuni volti o persone (di spalle, lontani, parzialmente "
+    "occlusi) possono non essere rilevati e restare visibili. Verifica sempre "
+    "l'output prima di conservarlo o condividerlo. La responsabilita' della "
+    "conformita' GDPR e della valutazione del rischio resta del titolare del "
+    "trattamento."
+)
 st.caption(
     "Demo dimostrativa. Elaborazione su infrastruttura condivisa: per video oltre "
     "i 30-60 secondi i tempi possono allungarsi. Limite consigliato 100MB."
 )
 st.markdown(
     "<p style='color:#8893A8;font-size:0.8rem'>"
-    "Privify — Open-source CCTV anonymization · github.com/jenz26/privify</p>",
+    "Privify · Marco Contin (s00006824) · Computer Vision Final Project, Epicode · "
+    "github.com/jenz26/privify</p>",
     unsafe_allow_html=True,
 )
