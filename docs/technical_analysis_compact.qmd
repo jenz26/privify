@@ -1,0 +1,47 @@
+---
+title: "Privify"
+subtitle: "A Computer Vision Pipeline for GDPR-Compliant Person and Face Anonymization in CCTV Video"
+author:
+  - name: "Marco Contin"
+    affiliation: "Epicode Institute of Technology"
+    email: "s00006824@epicode.edu.mt"
+date: "June 2026"
+abstract: |
+  Privify is a Python computer vision pipeline that anonymizes people and
+  faces in CCTV footage, supporting GDPR compliance for the small and medium
+  enterprises that operate video surveillance. It combines a fine-tuned
+  YOLOv8n face detector with a hybrid three-mode strategy (face, person_upper,
+  person_full) that falls back to person detection for the street-level scenes
+  where faces are too small to detect reliably. The central empirical finding
+  is a measured domain shift: the in-distribution-optimized face detector
+  reaches only 17.2% recall on the real CCTV target, against 80.4% for a
+  generic person detector. Re-training on a small-face-biased subset of WIDER
+  FACE recovers recall to 59.5% (a single-variable improvement of +42.4
+  percentage points), but a residual gap remains that motivates the
+  person-based modes. The system is a concrete illustration of the
+  metric-versus-behavior gap in applied machine learning.
+keywords: [computer vision, object detection, YOLOv8, GDPR, anonymization, domain shift, transfer learning, hybrid detection, person detection]
+format:
+  typst:
+    template-partials:
+      - _compact/typst-template.typ
+    papersize: a4
+    fontsize: 10pt
+    margin:
+      top: 1.8cm
+      bottom: 1.8cm
+      left: 1.8cm
+      right: 1.8cm
+    linestretch: 1.0
+    toc: false
+    number-sections: true
+    section-numbering: "1.1.1"
+    columns: 1
+    fig-pos: 'h'
+    fig-cap-location: bottom
+    tbl-cap-location: top
+filters:
+  - _compact/figure-widths.lua
+---
+
+{{< include technical_analysis.qmd >}}
